@@ -8,7 +8,7 @@ import { Link, useParams } from 'react-router'
 import { trpc } from '@/providers/trpc'
 import {
   ArrowLeft, Loader2, ExternalLink, Mail, Globe, MapPin, Users,
-  CheckCircle2, Send, XCircle, Star,
+  CheckCircle2, Send, XCircle,
   AlertTriangle
 } from 'lucide-react'
 
@@ -56,8 +56,8 @@ export default function SocialLeads() {
   }
 
   const hasSearch = data && 'search' in data && data.search
-  const mentions = (data && 'mentions' in data ? data.mentions : []) as any[]
-  const searchStatus = hasSearch ? (data as any).search.status : null
+  const mentions = data && 'mentions' in data ? data.mentions : []
+  const searchStatus = hasSearch ? data.search.status : null
 
   return (
     <div className="min-h-screen bg-[#080808] pt-24 pb-20">
@@ -139,14 +139,14 @@ export default function SocialLeads() {
               </div>
               <div className="p-4 border border-[#C9A84C]/20 bg-[#161616] text-center">
                 <p className="text-2xl font-cinzel text-[#C9A84C]">
-                  {mentions.filter((m: any) => !!m.publicEmail || !!m.publicWebsite).length}
+                  {mentions.filter((m) => !!m.publicEmail || !!m.publicWebsite).length}
                 </p>
                 <p className="text-[9px] text-[#8A6E2F] tracking-[2px] uppercase">With Contact Info</p>
               </div>
               <div className="p-4 border border-[#C9A84C]/20 bg-[#161616] text-center">
                 <p className="text-2xl font-cinzel text-[#C9A84C]">
                   {mentions.length > 0
-                    ? Math.round(mentions.reduce((s: number, m: any) => s + (m.relevanceScore || 0), 0) / mentions.length)
+                    ? Math.round(mentions.reduce((s: number, m) => s + (m.relevanceScore || 0), 0) / mentions.length)
                     : 0}
                 </p>
                 <p className="text-[9px] text-[#8A6E2F] tracking-[2px] uppercase">Avg Relevance</p>
@@ -156,7 +156,7 @@ export default function SocialLeads() {
             {/* Platform breakdown */}
             <div className="flex gap-3 mb-8">
               {['x', 'reddit', 'instagram'].map((p) => {
-                const count = mentions.filter((m: any) => m.platform === p).length
+                const count = mentions.filter((m) => m.platform === p).length
                 if (count === 0) return null
                 return (
                   <div key={p} className="px-3 py-1.5 bg-[#C9A84C]/10 border border-[#C9A84C]/20 text-[9px] text-[#C9A84C] tracking-[2px] uppercase">
@@ -183,7 +183,7 @@ export default function SocialLeads() {
 
             {/* Mentions List */}
             <div className="space-y-4">
-              {mentions.map((mention: any) => (
+              {mentions.map((mention) => (
                 <div
                   key={mention.id}
                   className="border border-[#C9A84C]/15 bg-[#161616] hover:border-[#C9A84C]/30 transition-colors"

@@ -121,6 +121,7 @@ export function sanitizeForPrompt(input: string): string {
   // Remove prompt injection attempts
   return input
     .replace(/\{\}/g, "") // Remove template injection
+    // eslint-disable-next-line no-control-regex
     .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, "") // Remove control chars
     .substring(0, 2000); // Cap length
 }

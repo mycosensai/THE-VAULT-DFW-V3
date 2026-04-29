@@ -7,9 +7,10 @@ import {
 
 export default function Wishlist() {
   const utils = trpc.useUtils()
-  const { data: items, isLoading } = trpc.wishlist.list.useQuery(undefined, {
+  const { data: rawItems, isLoading } = trpc.wishlist.list.useQuery(undefined, {
     staleTime: 1000 * 30,
   })
+  const items = (rawItems ?? []) as any[]
 
   const toggleMutation = trpc.wishlist.toggle.useMutation({
     onSuccess: () => {
@@ -45,7 +46,7 @@ export default function Wishlist() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {items.map((item: any) => (
+            {items.map((item) => (
               <div key={item.id} className="bg-[#161616] border border-[#C9A84C]/15 overflow-hidden group">
                 <Link to={`/listing/${item.listing.id}`} className="block">
                   <div className="aspect-[4/3] bg-[#1E1E1E] overflow-hidden">

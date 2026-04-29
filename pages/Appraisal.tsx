@@ -1,9 +1,9 @@
 import { useState, useRef } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { useNavigate } from 'react-router'
 import { trpc } from '@/providers/trpc'
 import {
   Diamond, Sparkles, Loader2, TrendingUp, BarChart3,
-  DollarSign, FileSearch, ArrowRight, ImageIcon, X
+  FileSearch, ImageIcon, X
 } from 'lucide-react'
 
 export default function Appraisal() {
@@ -64,12 +64,6 @@ export default function Appraisal() {
     { value: 'good', label: 'Good' },
     { value: 'fair', label: 'Fair' },
   ]
-
-  const confidenceColors: Record<string, string> = {
-    high: 'text-emerald-400',
-    medium: 'text-[#C9A84C]',
-    low: 'text-orange-400',
-  }
 
   return (
     <div className="min-h-screen pt-24 pb-16 px-4 sm:px-6 lg:px-8">

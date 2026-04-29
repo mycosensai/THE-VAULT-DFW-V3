@@ -12,9 +12,9 @@ import {
   Activity, MessageSquare, Globe, Workflow, BarChart3,
   CheckCircle, XCircle, ChevronDown, ChevronUp, Terminal,
   Lock, Unlock, Bot, Save, Plus,
-  ArrowLeft, Loader2, Zap, Eye, EyeOff, RefreshCw,
-  DollarSign, Receipt, ClipboardList, TrendingUp,
-  FileText, Clock, BookOpen, UserCheck, ShieldCheck,
+  ArrowLeft, Loader2, Zap, RefreshCw,
+  DollarSign,
+  FileText, Clock, UserCheck, ShieldCheck,
   Sparkles, Play, Square
 } from "lucide-react";
 
@@ -24,7 +24,7 @@ const ADMIN_EMAIL = "ratchetkrewelabs@gmail.com";
 
 export default function AgentCommand() {
   const navigate = useNavigate();
-  const { isAuthenticated, isAdmin, isLoading: authLoading, user } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const utils = trpc.useUtils();
 
   // Strict email-based access — only the designated admin email
@@ -82,16 +82,13 @@ export default function AgentCommand() {
 
   // ─── NEW SYSTEM QUERIES ───
   const { data: auditStats } = trpc.selfAudit.stats.useQuery(undefined, { enabled: isOwner });
-  const { data: auditDashboard } = trpc.selfAudit.dashboard.useQuery(undefined, { enabled: isOwner });
   const { data: auditLogs } = trpc.selfAudit.getLogs.useQuery({ limit: 20 }, { enabled: isOwner });
   const { data: hardening } = trpc.selfAudit.getHardening.useQuery({ limit: 10 }, { enabled: isOwner });
   const { data: policeStats } = trpc.police.stats.useQuery(undefined, { enabled: isOwner });
-  const { data: policeChecks } = trpc.police.recentChecks.useQuery({ limit: 20 }, { enabled: isOwner });
   const { data: trustScores } = trpc.police.trustScores.useQuery(undefined, { enabled: isOwner });
   const { data: accountingSummary } = trpc.accounting.summary.useQuery(undefined, { enabled: isOwner });
   const { data: latestReport } = trpc.dailyReport.latest.useQuery(undefined, { enabled: isOwner });
   const { data: reportStats } = trpc.dailyReport.stats.useQuery(undefined, { enabled: isOwner });
-  const { data: promptStats } = trpc.adminPrompt.stats.useQuery(undefined, { enabled: isOwner });
   const { data: pendingPrompts } = trpc.adminPrompt.pending.useQuery(undefined, { enabled: isOwner });
   // ─── DIFY ENGINE QUERIES ───
   const { data: difyTypes } = trpc.graphWorkflow.workflowTypes.useQuery(undefined, { enabled: isOwner });
@@ -106,9 +103,6 @@ export default function AgentCommand() {
   });
   const policeSweep = trpc.police.sweep.useMutation({
     onSuccess: () => { utils.police.stats.invalidate(); utils.police.recentChecks.invalidate(); utils.police.trustScores.invalidate(); }
-  });
-  const policeCheck = trpc.police.checkOutput.useMutation({
-    onSuccess: () => { utils.police.stats.invalidate(); utils.police.recentChecks.invalidate(); }
   });
   const reconcileAccounting = trpc.accounting.reconcile.useMutation({
     onSuccess: () => utils.accounting.summary.invalidate()
@@ -136,12 +130,12 @@ export default function AgentCommand() {
   const [auditResult, setAuditResult] = useState<any>(null);
   const [auditLoading, setAuditLoading] = useState(false);
   const [expandedProject, setExpandedProject] = useState<string | null>(null);
-  const [configForm, setConfigForm] = useState<Record<string, any>>({});
+  const [configForm, setConfigForm] = useState<Record<string, Record<string, string | undefined>>>({});
   const [workflowGoal, setWorkflowGoal] = useState("");
   const [partnerIndustry, setPartnerIndustry] = useState("");
   const [researchItem, setResearchItem] = useState("");
   const [researchCategory, setResearchCategory] = useState("");
-  const [chatFromAgent, setChatFromAgent] = useState("research");
+  const [chatFromAgent, setChatFromAgent] = useState<"outreach" | "content" | "research" | "social" | "appraiser" | "pricing">("research");
   const [chatMessage, setChatMessage] = useState("");
   const [autoItem, setAutoItem] = useState("");
   const [autoCategory, setAutoCategory] = useState("");
@@ -294,7 +288,7 @@ export default function AgentCommand() {
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id as typeof activeTab)}
               className={`flex items-center gap-2 px-4 py-2.5 text-[10px] tracking-[2px] uppercase transition-all ${
                 activeTab === tab.id
                   ? "bg-[#C9A84C]/15 text-[#E8CB7A] border-t-2 border-[#C9A84C]"
@@ -619,7 +613,7 @@ export default function AgentCommand() {
                                 verificationCommand: form.verificationCommand,
                                 handsOff: form.handsOff?.split(",").map((s: string) => s.trim()).filter(Boolean),
                                 model: form.model,
-                                mode: form.mode,
+                                mode: form.mode as "A" | "B" | "C" | undefined,
                               });
                             }}
                             className="px-4 py-2 bg-[#C9A84C] text-[#080808] text-[10px] tracking-[2px] uppercase font-semibold hover:bg-[#E8CB7A] transition-colors flex items-center gap-2"
@@ -907,7 +901,7 @@ export default function AgentCommand() {
               <div className="flex gap-2 mb-4">
                 <select
                   value={chatFromAgent}
-                  onChange={(e) => setChatFromAgent(e.target.value)}
+                  onChange={(e) => setChatFromAgent(e.target.value as "outreach" | "content" | "research" | "social" | "appraiser" | "pricing")}
                   className="w-36 bg-[#1E1E1E] border border-[#C9A84C]/20 px-3 py-2 text-xs text-[#F5EED8] outline-none"
                 >
                   <option value="research">Research</option>
@@ -928,7 +922,7 @@ export default function AgentCommand() {
                     if (!chatMessage.trim()) return;
                     agentDiscuss.mutate({
                       sessionId: "manual",
-                      fromAgent: chatFromAgent as any,
+                      fromAgent: chatFromAgent,
                       message: chatMessage,
                     });
                     setChatMessage("");
@@ -1046,7 +1040,7 @@ export default function AgentCommand() {
                 <div className="flex flex-wrap gap-2 mb-3">
                   <select
                     value={triggerType}
-                    onChange={(e) => setTriggerType(e.target.value as any)}
+                    onChange={(e) => setTriggerType(e.target.value as "sell" | "appraise" | "verify" | "tokenize")}
                     className="bg-[#1E1E1E] border border-[#C9A84C]/20 px-3 py-2 text-xs text-[#F5EED8] outline-none"
                   >
                     <option value="sell">Sell</option>
@@ -1389,7 +1383,7 @@ export default function AgentCommand() {
             <div className="bg-[#161616] border border-[#C9A84C]/15 p-6">
               <h3 className="font-cinzel text-xs tracking-[3px] text-[#C9A84C] uppercase mb-4">Agent Trust Scores</h3>
               <div className="space-y-2">
-                {trustScores && Object.entries(trustScores).map(([agent, data]: [string, any]) => (
+                {trustScores && Object.entries(trustScores).map(([agent, data]) => (
                   <div key={agent} className="flex items-center justify-between p-2 bg-[#1E1E1E] border border-[#C9A84C]/10">
                     <span className="text-[10px] text-[#F5EED8] font-bold capitalize">{agent}</span>
                     <div className="flex items-center gap-3">
@@ -1434,7 +1428,7 @@ export default function AgentCommand() {
               </div>
 
               <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mb-4">
-                {accountingSummary?.byType && Object.entries(accountingSummary.byType).map(([type, count]: [string, any]) => (
+                {accountingSummary?.byType && Object.entries(accountingSummary.byType).map(([type, count]) => (
                   <div key={type} className="bg-[#1E1E1E] border border-[#C9A84C]/10 p-2 text-center">
                     <div className="font-cinzel text-sm font-bold text-[#C9A84C]">{count}</div>
                     <div className="text-[8px] tracking-[1px] uppercase text-[#8A6E2F]">{type}</div>
@@ -1452,7 +1446,7 @@ export default function AgentCommand() {
             <div className="bg-[#161616] border border-[#C9A84C]/15 p-6">
               <h3 className="font-cinzel text-xs tracking-[3px] text-[#C9A84C] uppercase mb-4">Recent Financial Activity</h3>
               <div className="space-y-2">
-                {(accountingSummary?.recentActivity ?? []).map((act: any, i: number) => (
+                {(accountingSummary?.recentActivity ?? []).map((act, i) => (
                   <div key={i} className="flex items-center justify-between p-2 bg-[#1E1E1E] border border-[#C9A84C]/5">
                     <div>
                       <span className="text-[10px] text-[#F5EED8]">{act.description}</span>
@@ -1570,7 +1564,7 @@ export default function AgentCommand() {
                   <label className="text-[8px] tracking-[2px] uppercase text-[#8A6E2F] block mb-1">Workflow Type</label>
                   <select
                     value={difyWorkflowType}
-                    onChange={(e) => setDifyWorkflowType(e.target.value as any)}
+                    onChange={(e) => setDifyWorkflowType(e.target.value as "outreach" | "audit" | "cold_email_batch" | "research_scan")}
                     className="w-full bg-[#1E1E1E] border border-[#C9A84C]/20 px-3 py-2 text-xs text-[#F5EED8] outline-none"
                   >
                     {difyTypes?.map((t) => (

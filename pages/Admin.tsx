@@ -86,7 +86,7 @@ export default function Admin() {
               <ShoppingBag className="w-4 h-4 text-[#8A6E2F]" />
             </div>
             <div className="space-y-3">
-              {(stats?.recentListings || []).map((listing: any) => (
+              {(stats?.recentListings || []).map((listing) => (
                 <div key={listing.id} className="flex items-center justify-between p-3 bg-[#1E1E1E] border border-[#C9A84C]/10">
                   <div className="min-w-0 flex-1">
                     <p className="text-xs text-[#F5EED8] truncate">{listing.title}</p>
@@ -111,7 +111,7 @@ export default function Admin() {
               <BarChart3 className="w-4 h-4 text-[#8A6E2F]" />
             </div>
             <div className="space-y-3">
-              {(stats?.recentAppraisals || []).map((appraisal: any) => (
+              {(stats?.recentAppraisals || []).map((appraisal) => (
                 <div key={appraisal.id} className="flex items-center justify-between p-3 bg-[#1E1E1E] border border-[#C9A84C]/10">
                   <div className="min-w-0 flex-1">
                     <p className="text-xs text-[#F5EED8] truncate">{appraisal.itemName}</p>

@@ -14,10 +14,11 @@
       "node"
     ],
     "skipLibCheck": true,
+    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
       "@/*": [
-        "./src/*"
+        "./*"
       ],
       "@contracts/*": [
         "./contracts/*"
@@ -41,6 +42,14 @@
     "noUncheckedSideEffectImports": true
   },
   "include": [
-    "src"
+    "main.tsx",
+    "App.tsx",
+    "pages",
+    "components",
+    "hooks",
+    "providers",
+    "lib",
+    "contracts",
+    "api"
   ]
 }

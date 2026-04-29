@@ -10,28 +10,34 @@ import { appRouter } from "../api/router";
 import { createContext } from "../api/context";
 import { setDb } from "../api/queries/connection";
 import { setCloudflareEnv } from "../api/lib/env";
+import { trackError } from "../api/lib/monitor";
 import {
   getSecurityHeaders,
   checkRateLimit,
   getCorsConfig,
-  getClientIP,
   STRICT_RATE_LIMIT,
-  logAudit,
 } from "../api/security";
 
 export interface Env {
   DB: D1Database;
   APP_SECRET: string;
+  KIMI_AUTH_URL?: string;
+  KIMI_OPEN_URL?: string;
+  OWNER_UNION_ID?: string;
   STRIPE_SECRET_KEY?: string;
   VITE_STRIPE_PUBLISHABLE_KEY?: string;
   COINBASE_API_KEY?: string;
+  COINBASE_WEBHOOK_SECRET?: string;
   OPENAI_API_KEY?: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   X_CLIENT_ID?: string;
   X_CLIENT_SECRET?: string;
+  GITHUB_CLIENT_ID?: string;
+  GITHUB_CLIENT_SECRET?: string;
   NODE_ENV?: string;
   VAULT_DOMAIN?: string;
+  RESEND_API_KEY?: string;
 }
 
 const app = new Hono<{ Bindings: Env }>();
@@ -89,6 +95,7 @@ app.use("/api/trpc/*", async (c) => {
     createContext,
     onError: (opts) => {
       console.error(`[tRPC] ${opts.error.code} | ${opts.path} | ${opts.error.message}`);
+      trackError(opts.error, { path: opts.path, code: opts.error.code, type: "trpc" });
     },
   });
 });

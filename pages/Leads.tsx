@@ -106,7 +106,7 @@ export default function Leads() {
                   {runNext.isPending ? 'Searching...' : 'Find More Leads'}
                 </button>
               )}
-              {campaign.foundLeads >= campaign.targetProfessionals && !leads.every((l: any) => l.isDelivered) && (
+              {campaign.foundLeads >= campaign.targetProfessionals && !leads.every((l) => l.isDelivered) && (
                 <button onClick={() => deliver.mutate({ campaignId: campaign.id })} disabled={deliver.isPending}
                   className="flex items-center gap-2 px-6 py-3 border border-emerald-500 text-emerald-400 font-cinzel text-[10px] tracking-[3px] uppercase font-semibold hover:bg-emerald-500/10 disabled:opacity-50 transition-all">
                   {deliver.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
@@ -124,7 +124,7 @@ export default function Leads() {
         {/* Leads Grid */}
         {leads && leads.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-            {leads.map((lead: any) => (
+            {leads.map((lead) => (
               <div key={lead.id} className="bg-[#161616] border border-[#C9A84C]/15 p-6 hover:border-[#C9A84C]/40 transition-all">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
@@ -201,7 +201,7 @@ export default function Leads() {
           <div className="mt-8">
             <h2 className="font-cinzel text-xs tracking-[4px] uppercase text-[#C9A84C] font-semibold mb-4">Outreach Activity Log</h2>
             <div className="space-y-2">
-              {logs.slice(0, 10).map((log: any) => (
+              {logs.slice(0, 10).map((log) => (
                 <div key={log.id} className="flex items-center gap-3 p-3 bg-[#161616] border border-[#C9A84C]/10 text-[10px]">
                   <div className={`w-2 h-2 rounded-full ${log.status === 'interested' ? 'bg-emerald-400' : log.status === 'contacted' ? 'bg-[#C9A84C]' : 'bg-[#8A6E2F]'}`} />
                   <span className="text-[#C8BC98] flex-1">

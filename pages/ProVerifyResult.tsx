@@ -161,9 +161,9 @@ export default function ProVerifyResult() {
         {(app.reviews || []).length > 0 && (
           <div className="space-y-4 mb-8">
             <h2 className="font-cinzel text-xs tracking-[4px] uppercase text-[#C9A84C] font-semibold">Individual Expert Reviews</h2>
-            {(app.reviews || []).map((review: any) => {
+            {(app.reviews || []).map((review) => {
               const rVerdict = verdictColors[review.authenticityVerdict || 'uncertain'] || verdictColors.uncertain
-              const expert = (app.experts || []).find((e: any) => e.id === review.expertId)
+              const expert = (app.experts || []).find((e) => e.id === review.expertId)
               return (
                 <div key={review.id} className="bg-[#161616] border border-[#C9A84C]/15 p-6">
                   <div className="flex items-start justify-between mb-4">

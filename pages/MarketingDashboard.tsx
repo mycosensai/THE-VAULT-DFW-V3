@@ -10,10 +10,9 @@ import { useNavigate } from "react-router";
 import { useAuth } from "@/hooks/useAuth";
 import { trpc } from "@/providers/trpc";
 import {
-  BarChart3, TrendingUp, Users, Mail, Eye, MousePointer,
-  ArrowLeft, Loader2, Zap, Target, Globe, Clock,
-  DollarSign, Activity, Percent, Send, Inbox, Reply,
-  AlertTriangle, CheckCircle, XCircle, ChevronDown
+  BarChart3, Users, Mail, Eye,
+  ArrowLeft, Loader2, Zap, Globe, Clock,
+  Activity, Percent, Send, Reply
 } from "lucide-react";
 
 const ADMIN_EMAIL = "ratchetkrewelabs@gmail.com";

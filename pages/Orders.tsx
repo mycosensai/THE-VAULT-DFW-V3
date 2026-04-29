@@ -63,7 +63,7 @@ export default function Orders() {
           </div>
         ) : (
           <div className="space-y-4">
-            {orderList.map((order: any) => {
+            {orderList.map((order) => {
               const status = statusConfig[order.orderStatus] || statusConfig.pending
               const StatusIcon = status.icon
               return (

@@ -6,8 +6,8 @@ import { useState } from "react";
 import { useParams, Link } from "react-router";
 import { trpc } from "@/providers/trpc";
 import {
-  ArrowLeft, Play, Plus, CheckCircle, XCircle, Clock, RotateCcw,
-  Bot, AlertTriangle, Shield, FileText, BarChart3, Trash2
+  ArrowLeft, Play, Plus, CheckCircle, Clock, RotateCcw,
+  Bot, AlertTriangle, Shield, FileText, Trash2
 } from "lucide-react";
 
 export default function AgentProject() {

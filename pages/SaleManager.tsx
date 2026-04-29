@@ -180,7 +180,7 @@ export default function SaleManager() {
                     <label className="text-[9px] text-[#8A6E2F] tracking-[2px] uppercase block mb-1">Carrier</label>
                     <select
                       value={carrier}
-                      onChange={(e) => setCarrier(e.target.value as any)}
+                      onChange={(e) => setCarrier(e.target.value as 'fedex' | 'ups' | 'usps' | 'dhl')}
                       className="w-full bg-[#080808] border border-[#C9A84C]/20 px-3 py-2 text-xs text-[#F5EED8] focus:border-[#C9A84C] outline-none"
                     >
                       <option value="usps">USPS</option>
@@ -264,7 +264,7 @@ export default function SaleManager() {
 
         {/* Sales List */}
         <div className="space-y-3">
-          {mySales?.map((sale: any) => (
+          {mySales?.map((sale) => (
             <Link
               key={sale.id}
               to={`/sale/${sale.id}`}

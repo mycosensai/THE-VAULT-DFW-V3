@@ -279,7 +279,7 @@ export default function ProVerify() {
             {result?.matchedExperts && result.matchedExperts.length > 0 && (
               <div className="bg-[#161616] border border-[#C9A84C]/20 p-6 mb-6 text-left max-w-lg mx-auto">
                 <h3 className="text-[9px] tracking-[4px] uppercase text-[#C9A84C] mb-3 font-cinzel font-semibold">Assigned Experts</h3>
-                {result.matchedExperts.map((ex: any) => (
+                {result.matchedExperts.map((ex: { id: number; name: string; title: string; institution: string }) => (
                   <div key={ex.id} className="flex items-start gap-3 mb-3">
                     <Award className="w-4 h-4 text-[#C9A84C] flex-shrink-0 mt-0.5" />
                     <div>

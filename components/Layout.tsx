@@ -81,6 +81,7 @@ export default function Layout() {
   const [scrolled, setScrolled] = useState(false)
   const location = useLocation()
   const { user, isAuthenticated, isAdmin, logout } = useAuth()
+  const [lastPathname, setLastPathname] = useState(location.pathname)
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50)
@@ -88,10 +89,16 @@ export default function Layout() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
+  // Close menu and scroll to top on route change
   useEffect(() => {
-    setMenuOpen(false)
-    window.scrollTo(0, 0)
-  }, [location.pathname])
+    if (location.pathname !== lastPathname) {
+      setLastPathname(location.pathname)
+      if (menuOpen) {
+        setMenuOpen(false)
+      }
+      window.scrollTo(0, 0)
+    }
+  }, [location.pathname, lastPathname, menuOpen])
 
   const isPaymentPage = ['/checkout/', '/crypto-checkout/', '/sell'].some(p => location.pathname.startsWith(p))
 
@@ -304,7 +311,7 @@ export default function Layout() {
           </div>
 
           <div className="mt-12 pt-6 border-t border-[#C9A84C]/10 flex flex-col sm:flex-row justify-between items-center gap-4">
-            <p className="text-[10px] tracking-[2px] text-[#8A6E2F] uppercase">&copy; 2024 The Vault. All rights reserved.</p>
+            <p className="text-[10px] tracking-[2px] text-[#8A6E2F] uppercase">&copy; {new Date().getFullYear()} The Vault. All rights reserved.</p>
             <div className="flex gap-6">
               {footerLegal.map((item) => (
                 <Link key={item.label} to={item.path} className="text-[10px] tracking-[2px] text-[#8A6E2F] uppercase hover:text-[#C9A84C] transition-colors">
