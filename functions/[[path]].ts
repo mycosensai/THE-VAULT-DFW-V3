@@ -1,18 +1,17 @@
 /**
- * Cloudflare Pages Functions Entry Point - MINIMAL TEST VERSION
+ * Cloudflare Pages Functions Entry Point - PLAIN TEST
  */
-import { Hono } from "hono";
-
 export interface Env {
   DB: D1Database;
   APP_SECRET: string;
 }
 
-const app = new Hono<{ Bindings: Env }>();
-
-// Test basic response
-app.get("/api/test", (c) => {
-  return c.json({ status: "ok", message: "Minimal Function works!" });
-});
-
-export const onRequest = app.fetch;
+export const onRequest = async (context: { request: Request; env: Env }) => {
+  const url = new URL(context.request.url);
+  if (url.pathname === "/api/test") {
+    return new Response(JSON.stringify({ status: "ok", env: Object.keys(context.env) }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+  return new Response("Not found", { status: 404 });
+};
