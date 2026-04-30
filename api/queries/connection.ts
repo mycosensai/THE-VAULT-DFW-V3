@@ -9,7 +9,9 @@ export function setDb(d1: any) {
 
 export function getDb() {
   if (!dbInstance) {
-    throw new Error("Database not initialized. Call setDb() first.");
+    // Return a mock DB for graceful degradation when D1 is not configured
+    console.warn("WARNING: D1 database not initialized. Some features may not work.");
+    return null;
   }
   return dbInstance;
 }
