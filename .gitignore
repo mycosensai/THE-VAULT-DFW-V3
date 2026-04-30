@@ -1,54 +1,41 @@
 # Dependencies
 node_modules/
-.pnp
-.pnp.js
-package-lock.json
-yarn.lock
+.pnpm-store/
 
-# Development
+# Build output
+dist/
+build/
+
+# Environment files
 .env
 .env.local
 .env.*.local
-.vscode
-.idea
+
+# IDE
+.vscode/
+.idea/
 *.swp
 *.swo
 *~
+
+# OS
 .DS_Store
-
-# Build outputs
-dist/
-build/
-.next/
-out/
-
-# Vite
-.vite/
-
-# Drizzle
-db/migrations/
-
-# Testing
-coverage/
-.vitest/
-.nyc_output/
+Thumbs.db
 
 # Logs
-logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-lerna-debug.log*
 
-# Miscellaneous
+# Testing
+coverage/
+.nyc_output/
+
+# TypeScript
+*.tsbuildinfo
+
+# Misc
 .cache/
 .temp/
 tmp/
-*.zip
-*.tar.gz
-
-# Secrets & credentials (extra safety)
-.wrangler/
-wrangler.toml.local
-wrangler-secrets.json

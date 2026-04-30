@@ -17,7 +17,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": [
-        "./*"
+        "./src/*"
       ],
       "@contracts/*": [
         "./contracts/*"
@@ -41,14 +41,6 @@
     "noUncheckedSideEffectImports": true
   },
   "include": [
-    "main.tsx",
-    "App.tsx",
-    "pages",
-    "components",
-    "hooks",
-    "providers",
-    "lib",
-    "contracts",
-    "api"
+    "src"
   ]
 }
