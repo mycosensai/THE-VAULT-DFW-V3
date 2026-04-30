@@ -75,6 +75,24 @@ app.use("/api/*", async (c, next) => {
   await next();
 });
 
+// ─── Diagnostic endpoint ───
+app.get("/api/diag", (c) => {
+  try {
+    return c.json({
+      status: "ok",
+      env: {
+        hasDB: !!c.env.DB,
+        hasAppSecret: !!c.env.APP_SECRET,
+        hasStripe: !!c.env.STRIPE_SECRET_KEY,
+        vaultDomain: c.env.VAULT_DOMAIN || "not-set",
+      },
+      timestamp: Date.now()
+    });
+  } catch (e: any) {
+    return c.json({ error: e?.message || "Unknown error" }, 500);
+  }
+});
+
 // ─── Health check ───
 app.get("/api/health", (c) =>
   c.json({ status: "ok", timestamp: Date.now(), environment: "production" })
