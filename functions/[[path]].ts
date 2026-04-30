@@ -82,15 +82,20 @@ app.get("/api/health", (c) =>
 
 // ─── tRPC handler ───
 app.use("/api/trpc/*", async (c) => {
-  return fetchRequestHandler({
-    endpoint: "/api/trpc",
-    req: c.req.raw,
-    router: appRouter,
-    createContext,
-    onError: (opts) => {
-      console.error(`[tRPC] ${opts.error.code} | ${opts.path} | ${opts.error.message}`);
-    },
-  });
+  try {
+    return await fetchRequestHandler({
+      endpoint: "/api/trpc",
+      req: c.req.raw,
+      router: appRouter,
+      createContext,
+      onError: (opts) => {
+        console.error(`[tRPC] ${opts.error.code} | ${opts.path} | ${opts.error.message}`);
+      },
+    });
+  } catch (err: any) {
+    console.error("[tRPC Handler Error]", err?.message || err);
+    return c.json({ error: "Internal server error", detail: err?.message || "Unknown error" }, 500);
+  }
 });
 
 // ─── 404 for unmatched API routes ───
