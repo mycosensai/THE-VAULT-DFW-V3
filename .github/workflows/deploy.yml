@@ -27,6 +27,12 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Disable broken backend functions
+        run: |
+          # Temporarily disable functions so Pages deploys frontend only
+          mv functions _functions_disabled || true
+          mv wrangler.toml _wrangler.toml.disabled || true
+
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/pages-action@v1
         with:
