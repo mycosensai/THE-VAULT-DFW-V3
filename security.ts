@@ -158,11 +158,7 @@ export function getCorsConfig() {
       if (!origin) return "*";
       if (origin.includes("localhost")) return origin;
       const allowedDomain = env.vaultDomain;
-      if (!allowedDomain) {
-        // When VAULT_DOMAIN is not set, allow all origins for development
-        return origin || "*";
-      }
-      if (origin.includes(allowedDomain)) return origin;
+      if (allowedDomain && origin.includes(allowedDomain)) return origin;
       return null;
     },
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"] as string[],
@@ -171,11 +167,9 @@ export function getCorsConfig() {
       "Authorization",
       "X-Local-Auth-Token",
       "X-Session-Id",
-      "X-Agent-Token",
-      "X-Requested-With",
     ],
-    credentials: true,
     maxAge: 86400,
+    credentials: true,
   };
 }
 

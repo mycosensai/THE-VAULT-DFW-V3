@@ -1,13 +1,13 @@
 name = "thevault"
 compatibility_date = "2025-04-01"
-compatibility_flags = ["nodejs_compat"]
+compatibility_flags = []
 pages_build_output_dir = "dist"
 
 # D1 Database Binding - create with: npx wrangler d1 create thevault-db
 [[d1_databases]]
 binding = "DB"
 database_name = "thevault-db"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "e6d36014-de05-40da-9f85-c5fd7027d93c"
 
 # Secrets to set via wrangler:
 # wrangler pages secret put APP_SECRET

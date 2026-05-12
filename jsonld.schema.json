@@ -1,0 +1,54 @@
+[
+  {
+    "url": "https://thevaultdfw.win",
+    "name": "The Vault",
+    "@type": "Organization",
+    "brand": {
+      "name": "The Vault",
+      "@type": "Brand"
+    },
+    "@context": "https://schema.org",
+    "description": "Elite Collector Exchange powered by AI, offering transparent commissions and real-time market pricing for collectors.",
+    "foundingDate": "2024"
+  },
+  {
+    "url": "https://thevaultdfw.win",
+    "name": "The Vault",
+    "@type": "WebSite",
+    "@context": "https://schema.org",
+    "description": "AI-powered marketplace connecting buyers and sellers of collectibles with transparent pricing and AI appraisal.",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": "https://thevaultdfw.win/search?q={search_term_string}",
+      "query-input": "required name=search_term_string"
+    }
+  },
+  {
+    "url": "https://thevaultdfw.win",
+    "name": "The Vault",
+    "@type": "WebPage",
+    "@context": "https://schema.org",
+    "breadcrumb": {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "item": "https://thevaultdfw.win",
+          "name": "Home",
+          "@type": "ListItem",
+          "position": 1
+        }
+      ]
+    },
+    "inLanguage": "en",
+    "description": "Est. 2024 Elite Collector Exchange featuring AI appraisal, real-time market pricing, and transparent commissions. List items, get AI appraisals, and find buyers."
+  },
+  {
+    "url": "https://thevaultdfw.win",
+    "name": "AI Appraisal",
+    "@type": "SoftwareApplication",
+    "@context": "https://schema.org",
+    "description": "AI-powered appraisal tool that analyzes market data to estimate item value for listings on The Vault.",
+    "operatingSystem": "All",
+    "applicationCategory": "Web-based application"
+  }
+]
