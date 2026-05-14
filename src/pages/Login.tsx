@@ -47,6 +47,7 @@ function ProviderButton({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       disabled={disabled || pending}
       className="w-full flex items-center justify-center gap-3 py-3.5 text-xs tracking-[2px] uppercase font-cinzel font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-[#C9A84C]/30 text-[#C9A84C] hover:bg-[#C9A84C]/8"
@@ -57,25 +58,14 @@ function ProviderButton({
   )
 }
 
-async function parseAuthResponse(response: Response) {
-  const text = await response.text()
-
-  if (!text) {
-    throw new Error('The server returned an empty response. Please try again.')
+function cleanAuthError(message: string) {
+  if (message.includes('Unable to transform response')) {
+    return 'The authentication service is not returning a valid response yet. Please redeploy the latest API fixes and try again.'
   }
-
-  let data: any
-  try {
-    data = JSON.parse(text)
-  } catch {
-    throw new Error('The server returned an invalid response. Please try again.')
+  if (message.includes('Unexpected end of JSON')) {
+    return 'The authentication service returned an empty response. Please try again.'
   }
-
-  if (!response.ok || data?.error) {
-    throw new Error(data?.error || data?.message || 'Authentication failed')
-  }
-
-  return data
+  return message || 'Authentication failed'
 }
 
 export default function Login() {
@@ -85,7 +75,22 @@ export default function Login() {
   const [name, setName] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
-  const [localPending, setLocalPending] = useState(false)
+
+  const loginMutation = trpc.localAuth.login.useMutation({
+    onSuccess: (data) => {
+      localStorage.setItem('local_auth_token', data.token)
+      window.location.href = '/'
+    },
+    onError: (err) => setError(cleanAuthError(err.message)),
+  })
+
+  const registerMutation = trpc.localAuth.register.useMutation({
+    onSuccess: (data) => {
+      localStorage.setItem('local_auth_token', data.token)
+      window.location.href = '/'
+    },
+    onError: (err) => setError(cleanAuthError(err.message)),
+  })
 
   const getOAuthUrl = trpc.oauth.getAuthUrl.useMutation({
     onSuccess: (data) => {
@@ -95,44 +100,32 @@ export default function Login() {
         setError(data.error)
       }
     },
-    onError: (err) => setError(err.message),
+    onError: (err) => setError(cleanAuthError(err.message)),
   })
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
 
-    if (mode === 'register') {
-      if (!name || !email || !password) {
-        setError('All fields are required')
+    if (mode === 'login') {
+      if (!email || !password) {
+        setError('Email and password are required')
         return
       }
-      if (password.length < 8) {
-        setError('Password must be at least 8 characters')
-        return
-      }
+      loginMutation.mutate({ email, password })
+      return
     }
 
-    setLocalPending(true)
-    try {
-      const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/register'
-      const payload = mode === 'login' ? { email, password } : { name, email, password }
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(payload),
-      })
-
-      const data = await parseAuthResponse(response)
-      localStorage.setItem('local_auth_token', data.token)
-      window.location.href = '/'
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Authentication failed')
-    } finally {
-      setLocalPending(false)
+    if (!name || !email || !password) {
+      setError('All fields are required')
+      return
     }
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters')
+      return
+    }
+
+    registerMutation.mutate({ name, email, password })
   }
 
   const handleProviderOAuth = (provider: 'google' | 'x' | 'github') => {
@@ -140,7 +133,7 @@ export default function Login() {
     getOAuthUrl.mutate({ provider })
   }
 
-  const isPending = localPending || getOAuthUrl.isPending
+  const isPending = loginMutation.isPending || registerMutation.isPending || getOAuthUrl.isPending
 
   return (
     <div className="min-h-screen pt-24 pb-16 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
