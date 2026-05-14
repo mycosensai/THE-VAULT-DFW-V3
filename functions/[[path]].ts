@@ -23,7 +23,6 @@ function getD1(env: Env): D1Database | undefined {
 
 const app = new Hono<{ Bindings: Env }>();
 
-// ─── Env + D1 init ───
 app.use(async (c, next) => {
   setCloudflareEnv(c.env as unknown as Record<string, unknown>);
 
@@ -35,7 +34,6 @@ app.use(async (c, next) => {
   await next();
 });
 
-// ─── Security headers ───
 app.use(async (c, next) => {
   await next();
   const headers = getSecurityHeaders();
@@ -44,13 +42,9 @@ app.use(async (c, next) => {
   }
 });
 
-// ─── CORS ───
 app.use("/api/*", cors(getCorsConfig()));
-
-// ─── Trailing slash ───
 app.use(trimTrailingSlash());
 
-// ─── Rate limiting ───
 app.use("/api/*", async (c, next) => {
   const isAuth =
     c.req.path.includes("localAuth.login") ||
@@ -74,7 +68,6 @@ app.use("/api/*", async (c, next) => {
   await next();
 });
 
-// ─── Health check ───
 app.get("/api/health", (c) =>
   c.json({
     ok: true,
@@ -109,8 +102,7 @@ app.get("/api/db/health", async (c) => {
   }
 });
 
-// ─── tRPC handler ───
-app.use("/api/trpc/*", async (c) => {
+async function handleTRPC(c: any) {
   try {
     return await fetchRequestHandler({
       endpoint: "/api/trpc",
@@ -125,7 +117,10 @@ app.use("/api/trpc/*", async (c) => {
     console.error("[tRPC Handler Error]", err?.message || err);
     return c.json({ error: "Internal server error" }, 500);
   }
-});
+}
+
+app.all("/api/trpc", handleTRPC);
+app.all("/api/trpc/*", handleTRPC);
 
 app.all("/api/*", (c) => c.json({ error: "API route not found", path: c.req.path }, 404));
 
