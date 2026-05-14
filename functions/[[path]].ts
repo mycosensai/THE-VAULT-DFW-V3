@@ -12,21 +12,13 @@ import { setDb } from "../api/queries/connection";
 import { setCloudflareEnv } from "../api/lib/env";
 import { checkRateLimit, getSecurityHeaders, getCorsConfig } from "../api/security";
 
-export interface Env {
-  DB: D1Database;
-  APP_SECRET: string;
-  STRIPE_SECRET_KEY?: string;
-  STRIPE_WEBHOOK_SECRET?: string;
-  VITE_STRIPE_PUBLISHABLE_KEY?: string;
-  VAULT_DOMAIN?: string;
-  NODE_ENV?: string;
-  GOOGLE_CLIENT_ID?: string;
-  GOOGLE_CLIENT_SECRET?: string;
-  X_CLIENT_ID?: string;
-  X_CLIENT_SECRET?: string;
-  GITHUB_CLIENT_ID?: string;
-  GITHUB_CLIENT_SECRET?: string;
-  RESEND_API_KEY?: string;
+type Env = Record<string, unknown> & {
+  DB?: D1Database;
+  thevault?: D1Database;
+};
+
+function getD1(env: Env): D1Database | undefined {
+  return env.DB || env.thevault;
 }
 
 const app = new Hono<{ Bindings: Env }>();
@@ -34,9 +26,12 @@ const app = new Hono<{ Bindings: Env }>();
 // ─── Env + D1 init ───
 app.use(async (c, next) => {
   setCloudflareEnv(c.env as unknown as Record<string, unknown>);
-  if (c.env.DB) {
-    setDb(c.env.DB);
+
+  const db = getD1(c.env);
+  if (db) {
+    setDb(db);
   }
+
   await next();
 });
 
@@ -82,11 +77,37 @@ app.use("/api/*", async (c, next) => {
 // ─── Health check ───
 app.get("/api/health", (c) =>
   c.json({
+    ok: true,
     status: "ok",
     version: "v3.0.0",
+    database: getD1(c.env) ? "bound" : "missing",
     timestamp: new Date().toISOString(),
   }),
 );
+
+app.get("/api/db/health", async (c) => {
+  const db = getD1(c.env);
+
+  if (!db) {
+    return c.json({ ok: false, error: "D1 binding missing" }, 500);
+  }
+
+  try {
+    const result = await db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name LIMIT 100")
+      .all();
+
+    return c.json({ ok: true, tables: result.results ?? [] });
+  } catch (err) {
+    return c.json(
+      {
+        ok: false,
+        error: err instanceof Error ? err.message : "D1 query failed",
+      },
+      500,
+    );
+  }
+});
 
 // ─── tRPC handler ───
 app.use("/api/trpc/*", async (c) => {
@@ -105,6 +126,8 @@ app.use("/api/trpc/*", async (c) => {
     return c.json({ error: "Internal server error" }, 500);
   }
 });
+
+app.all("/api/*", (c) => c.json({ error: "API route not found", path: c.req.path }, 404));
 
 export const onRequest = async (context: any) => {
   return app.fetch(context.request, context.env, context);
