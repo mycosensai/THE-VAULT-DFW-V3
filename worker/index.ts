@@ -11,16 +11,22 @@ import { checkRateLimit, getCorsConfig, getSecurityHeaders } from "../api/securi
 
 type Env = Record<string, unknown> & {
   DB?: D1Database;
+  thevault?: D1Database;
   ASSETS?: Fetcher;
 };
 
 const app = new Hono<{ Bindings: Env }>();
 
+function getD1(env: Env): D1Database | undefined {
+  return env.DB || env.thevault;
+}
+
 app.use(async (c, next) => {
   setCloudflareEnv(c.env);
 
-  if (c.env.DB) {
-    setDb(c.env.DB);
+  const d1 = getD1(c.env);
+  if (d1) {
+    setDb(d1);
   }
 
   await next();
@@ -61,9 +67,25 @@ app.get("/api/health", (c) =>
     ok: true,
     status: "ok",
     version: "v3.0.0",
+    database: getD1(c.env) ? "bound" : "missing",
     timestamp: new Date().toISOString(),
   }),
 );
+
+app.get("/api/db/health", async (c) => {
+  const d1 = getD1(c.env);
+
+  if (!d1) {
+    return c.json({ ok: false, error: "D1 binding missing" }, 500);
+  }
+
+  try {
+    const result = await d1.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name LIMIT 100").all();
+    return c.json({ ok: true, tables: result.results ?? [] });
+  } catch (err) {
+    return c.json({ ok: false, error: err instanceof Error ? err.message : "D1 query failed" }, 500);
+  }
+});
 
 app.all("/api/trpc/*", async (c) => {
   try {
