@@ -1,4 +1,4 @@
-name = "thevault-db"
+name = "thevaultv0"
 compatibility_date = "2025-04-01"
 compatibility_flags = []
 pages_build_output_dir = "dist"
