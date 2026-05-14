@@ -1,2 +1,5 @@
 /api/* /api/:splat 200
-/* /index.html 200
+/dashboard /index.html 200
+/profile /index.html 200
+/settings /index.html 200
+/listings/* /index.html 200
