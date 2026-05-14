@@ -3,19 +3,25 @@ compatibility_date = "2025-04-01"
 compatibility_flags = []
 pages_build_output_dir = "dist"
 
-# D1 Database Binding - create with: npx wrangler d1 create thevault-db
+# Cloudflare D1 database binding
+# Database name: thevault-db
 [[d1_databases]]
 binding = "DB"
 database_name = "thevault-db"
-database_id = "e6d36014-de05-40da-9f85-c5fd7027d93c"
+database_id = "375949ce-7c7d-4822-8235-461446769258"
 
-# Secrets to set via wrangler:
+# Required production secrets:
 # wrangler pages secret put APP_SECRET
 # wrangler pages secret put STRIPE_SECRET_KEY
+# wrangler pages secret put STRIPE_WEBHOOK_SECRET
 # wrangler pages secret put VITE_STRIPE_PUBLISHABLE_KEY
-# wrangler pages secret put COINBASE_API_KEY
-# wrangler pages secret put OPENAI_API_KEY
+# wrangler pages secret put VAULT_DOMAIN
+
+# Optional OAuth/email secrets:
 # wrangler pages secret put GOOGLE_CLIENT_ID
 # wrangler pages secret put GOOGLE_CLIENT_SECRET
 # wrangler pages secret put X_CLIENT_ID
 # wrangler pages secret put X_CLIENT_SECRET
+# wrangler pages secret put GITHUB_CLIENT_ID
+# wrangler pages secret put GITHUB_CLIENT_SECRET
+# wrangler pages secret put RESEND_API_KEY
