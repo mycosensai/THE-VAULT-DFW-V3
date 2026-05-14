@@ -5,7 +5,6 @@ import {
   Diamond, LogIn, Loader2, UserPlus, ArrowLeft, Eye, EyeOff
 } from 'lucide-react'
 
-// ─── Brand Icons ───
 function GoogleIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24">
@@ -33,43 +32,50 @@ function GitHubIcon({ className }: { className?: string }) {
   )
 }
 
-function KimiIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-6H8v6H6V7h2v4h1V7h2v10zm6 0h-2v-4h-1v4h-2V7h2v4h1V7h2v10z" />
-    </svg>
-  )
-}
-
-// ─── Provider Button ───
 function ProviderButton({
   label,
   icon,
   onClick,
   disabled,
   pending,
-  variant = 'outline',
 }: {
   label: string
   icon: React.ReactNode
   onClick: () => void
   disabled?: boolean
   pending?: boolean
-  variant?: 'gold' | 'outline'
 }) {
-  const base =
-    'w-full flex items-center justify-center gap-3 py-3.5 text-xs tracking-[2px] uppercase font-cinzel font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed'
-  const styles =
-    variant === 'gold'
-      ? 'bg-gradient-to-br from-[#C9A84C] to-[#8A6E2F] text-[#080808] hover:shadow-[0_0_40px_rgba(201,168,76,0.4)]'
-      : 'border border-[#C9A84C]/30 text-[#C9A84C] hover:bg-[#C9A84C]/8'
-
   return (
-    <button onClick={onClick} disabled={disabled || pending} className={`${base} ${styles}`}>
+    <button
+      onClick={onClick}
+      disabled={disabled || pending}
+      className="w-full flex items-center justify-center gap-3 py-3.5 text-xs tracking-[2px] uppercase font-cinzel font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-[#C9A84C]/30 text-[#C9A84C] hover:bg-[#C9A84C]/8"
+    >
       {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : icon}
       {label}
     </button>
   )
+}
+
+async function parseAuthResponse(response: Response) {
+  const text = await response.text()
+
+  if (!text) {
+    throw new Error('The server returned an empty response. Please try again.')
+  }
+
+  let data: any
+  try {
+    data = JSON.parse(text)
+  } catch {
+    throw new Error('The server returned an invalid response. Please try again.')
+  }
+
+  if (!response.ok || data?.error) {
+    throw new Error(data?.error || data?.message || 'Authentication failed')
+  }
+
+  return data
 }
 
 export default function Login() {
@@ -79,24 +85,8 @@ export default function Login() {
   const [name, setName] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
+  const [localPending, setLocalPending] = useState(false)
 
-  const loginMutation = trpc.localAuth.login.useMutation({
-    onSuccess: (data) => {
-      localStorage.setItem('local_auth_token', data.token)
-      window.location.href = '/'
-    },
-    onError: (err) => setError(err.message),
-  })
-
-  const registerMutation = trpc.localAuth.register.useMutation({
-    onSuccess: (data) => {
-      localStorage.setItem('local_auth_token', data.token)
-      window.location.href = '/'
-    },
-    onError: (err) => setError(err.message),
-  })
-
-  // OAuth URL generators
   const getOAuthUrl = trpc.oauth.getAuthUrl.useMutation({
     onSuccess: (data) => {
       if (data.url) {
@@ -108,13 +98,11 @@ export default function Login() {
     onError: (err) => setError(err.message),
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
 
-    if (mode === 'login') {
-      loginMutation.mutate({ email, password })
-    } else {
+    if (mode === 'register') {
       if (!name || !email || !password) {
         setError('All fields are required')
         return
@@ -123,39 +111,40 @@ export default function Login() {
         setError('Password must be at least 8 characters')
         return
       }
-      registerMutation.mutate({ name, email, password })
+    }
+
+    setLocalPending(true)
+    try {
+      const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/register'
+      const payload = mode === 'login' ? { email, password } : { name, email, password }
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload),
+      })
+
+      const data = await parseAuthResponse(response)
+      localStorage.setItem('local_auth_token', data.token)
+      window.location.href = '/'
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Authentication failed')
+    } finally {
+      setLocalPending(false)
     }
   }
 
-  // Kimi OAuth (legacy direct flow)
-  const handleKimiOAuth = () => {
-    const appID = import.meta.env.VITE_APP_ID
-    const authURL = import.meta.env.VITE_KIMI_AUTH_URL
-    const redirectUri = `${window.location.origin}/api/oauth/callback`
-    const state = btoa(redirectUri)
-
-    const url = new URL(`${authURL}/oauth/authorize`)
-    url.searchParams.set('client_id', appID)
-    url.searchParams.set('redirect_uri', redirectUri)
-    url.searchParams.set('response_type', 'code')
-    url.searchParams.set('scope', 'profile')
-    url.searchParams.set('state', state)
-
-    window.location.href = url.toString()
-  }
-
-  // Google, X, GitHub OAuth via tRPC
   const handleProviderOAuth = (provider: 'google' | 'x' | 'github') => {
     setError('')
     getOAuthUrl.mutate({ provider })
   }
 
-  const isPending = loginMutation.isPending || registerMutation.isPending || getOAuthUrl.isPending
+  const isPending = localPending || getOAuthUrl.isPending
 
   return (
     <div className="min-h-screen pt-24 pb-16 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
       <div className="max-w-md w-full">
-        {/* Header */}
         <div className="text-center mb-10">
           <div className="w-12 h-12 border border-[#C9A84C] rotate-45 flex items-center justify-center mx-auto mb-4">
             <Diamond className="w-5 h-5 text-[#C9A84C] -rotate-45" />
@@ -168,19 +157,11 @@ export default function Login() {
           </p>
         </div>
 
-        {/* Form Card */}
         <div className="bg-[#161616] border border-[#C9A84C]/25 p-8 relative">
           <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-[#C9A84C]" />
           <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-[#C9A84C]" />
 
-          {/* ─── OAuth Providers ─── */}
           <div className="space-y-3 mb-6">
-            <ProviderButton
-              label="Sign In with Kimi"
-              icon={<KimiIcon className="w-4 h-4" />}
-              onClick={handleKimiOAuth}
-              pending={isPending}
-            />
             <ProviderButton
               label="Sign In with Google"
               icon={<GoogleIcon className="w-4 h-4" />}
@@ -207,7 +188,6 @@ export default function Login() {
             <div className="flex-1 h-px bg-[#C9A84C]/15" />
           </div>
 
-          {/* Local Auth Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
             {mode === 'register' && (
               <div>
