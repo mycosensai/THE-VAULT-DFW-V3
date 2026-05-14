@@ -5,15 +5,15 @@ let dbInstance: any = null;
 let stubDb: any = null;
 
 function createStubDb() {
-  // Return a stub DB that has all the methods but returns empty results
-  // This prevents crashes when D1 is not configured
   if (stubDb) return stubDb;
 
   const noOp = () => Promise.resolve([]);
+
   const chain = {
     from: () => chain,
     where: () => chain,
     limit: () => chain,
+    offset: () => chain,
     orderBy: () => chain,
     groupBy: () => chain,
     having: () => chain,
@@ -29,12 +29,17 @@ function createStubDb() {
     insert: () => chain,
     update: () => chain,
     delete: () => chain,
-    query: { run: noOp, all: noOp, get: () => Promise.resolve(null) },
+    query: {
+      run: noOp,
+      all: noOp,
+      get: () => Promise.resolve(null),
+    },
     run: noOp,
     all: noOp,
     get: () => Promise.resolve(null),
     then: (cb: any) => Promise.resolve([]).then(cb),
   };
+
   stubDb = chain;
   return stubDb;
 }
@@ -45,8 +50,20 @@ export function setDb(d1: any) {
 
 export function getDb() {
   if (!dbInstance) {
-    console.warn("WARNING: D1 database not initialized. Using stub DB. Some features will return empty results.");
+    const isProduction =
+      typeof globalThis !== "undefined" &&
+      (globalThis as any)?.process?.env?.NODE_ENV === "production";
+
+    if (isProduction) {
+      throw new Error("D1 database not initialized in production");
+    }
+
+    console.warn(
+      "WARNING: D1 database not initialized. Using stub DB for development only.",
+    );
+
     return createStubDb();
   }
+
   return dbInstance;
 }
