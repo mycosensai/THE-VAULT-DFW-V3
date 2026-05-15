@@ -5,6 +5,7 @@ import { cryptoPayments, listings } from "@db/schema";
 import { eq, desc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { logAudit, getClientIP } from "./security";
+import { env } from "./lib/env";
 
 const LAMPORTS_PER_SOL = 1_000_000_000;
 const SOLANA_MAINNET_RPC = "https://api.mainnet-beta.solana.com";
@@ -43,12 +44,16 @@ type ParsedSolanaTransaction = {
 };
 
 function getRuntimeValue(name: string): string {
-  const value = (globalThis as any)?.process?.env?.[name];
-  return typeof value === "string" ? value : "";
+  const runtimeEnv = env as unknown as Record<string, string>;
+  if (name === "SOLANA_RECEIVER_ADDRESS") return runtimeEnv.solanaReceiverAddress || "";
+  if (name === "TREASURY_WALLET") return runtimeEnv.treasuryWallet || "";
+  if (name === "SOLANA_RPC_URL") return runtimeEnv.solanaRpcUrl || "";
+  if (name === "SOL_USD_RATE") return runtimeEnv.solUsdRate || "";
+  return "";
 }
 
 function getReceiverAddress(): string {
-  return getRuntimeValue("SOLANA_RECEIVER_ADDRESS");
+  return getRuntimeValue("SOLANA_RECEIVER_ADDRESS") || getRuntimeValue("TREASURY_WALLET");
 }
 
 function getRpcUrl(): string {
