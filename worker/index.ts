@@ -41,6 +41,7 @@ app.use("/api/*", cors(getCorsConfig()));
 
 app.use("/api/*", async (c, next) => {
   const isAuth =
+    c.req.path.includes("/api/auth/") ||
     c.req.path.includes("localAuth.login") ||
     c.req.path.includes("localAuth.register") ||
     c.req.path.includes("oauth.initiate") ||
@@ -52,6 +53,7 @@ app.use("/api/*", async (c, next) => {
   if (!result.allowed) {
     return c.json(
       {
+        ok: false,
         error: "Too many requests",
         retryAfter: Math.max(0, Math.ceil((result.resetAt - Date.now()) / 1000)),
       },
@@ -87,7 +89,7 @@ app.get("/api/db/health", async (c) => {
   }
 });
 
-app.all("/api/trpc/*", async (c) => {
+async function handleTRPC(c: any) {
   try {
     return await fetchRequestHandler({
       endpoint: "/api/trpc",
@@ -102,12 +104,25 @@ app.all("/api/trpc/*", async (c) => {
     console.error("[tRPC Handler Error]", err);
     return c.json({ error: "Internal server error" }, 500);
   }
-});
+}
+
+app.all("/api/trpc", handleTRPC);
+app.all("/api/trpc/*", handleTRPC);
 
 app.all("/api/*", (c) => c.json({ error: "API route not found", path: c.req.path }, 404));
 
 export default {
-  fetch(request: Request, env: Env, ctx: ExecutionContext) {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    const url = new URL(request.url);
+
+    if (url.pathname.startsWith("/api/")) {
+      return app.fetch(request, env, ctx);
+    }
+
+    if (env.ASSETS) {
+      return env.ASSETS.fetch(request);
+    }
+
     return app.fetch(request, env, ctx);
   },
 };
