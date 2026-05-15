@@ -1,15 +1,5 @@
 import { env } from "./lib/env";
 
-/**
- * THE VAULT SECURITY MODULE
- * Fort Knox-grade security hardening
- * Addresses: rate limiting, CORS, security headers, audit logging,
- * input sanitization, token revocation, request validation
- */
-
-// Vault Security Module - Fort Knox hardening
-
-// ─── RATE LIMITING ───
 interface RateLimitEntry {
   count: number;
   windowStart: number;
@@ -23,17 +13,18 @@ export interface RateLimitConfig {
 }
 
 export const DEFAULT_RATE_LIMIT: RateLimitConfig = {
-  windowMs: 60 * 1000, // 1 minute
+  windowMs: 60 * 1000,
   maxRequests: 60,
 };
 
 export const STRICT_RATE_LIMIT: RateLimitConfig = {
-  windowMs: 60 * 1000, // 1 minute
+  windowMs: 60 * 1000,
   maxRequests: 5,
 };
 
 export function getClientIP(req: Request): string {
   return (
+    req.headers.get("cf-connecting-ip") ||
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     req.headers.get("x-real-ip") ||
     "unknown"
@@ -42,7 +33,7 @@ export function getClientIP(req: Request): string {
 
 export function checkRateLimit(
   req: Request,
-  config: RateLimitConfig = DEFAULT_RATE_LIMIT
+  config: RateLimitConfig = DEFAULT_RATE_LIMIT,
 ): { allowed: boolean; remaining: number; resetAt: number } {
   const key = (config.keyGenerator || getClientIP)(req);
   const now = Date.now();
@@ -73,7 +64,6 @@ export function checkRateLimit(
   };
 }
 
-// ─── INPUT SANITIZATION ───
 const XSS_PATTERNS = [
   /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
   /javascript:/gi,
@@ -88,14 +78,12 @@ export function sanitizeInput(input: string): string {
   for (const pattern of XSS_PATTERNS) {
     sanitized = sanitized.replace(pattern, "[removed]");
   }
-  // Escape HTML entities
-  sanitized = sanitized
+  return sanitized
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
+    .replace(/\"/g, "&quot;")
     .replace(/'/g, "&#x27;");
-  return sanitized;
 }
 
 export function sanitizeObject(obj: Record<string, unknown>): Record<string, unknown> {
@@ -106,9 +94,7 @@ export function sanitizeObject(obj: Record<string, unknown>): Record<string, unk
     } else if (typeof value === "object" && value !== null && !Array.isArray(value)) {
       result[key] = sanitizeObject(value as Record<string, unknown>);
     } else if (Array.isArray(value)) {
-      result[key] = value.map((item) =>
-        typeof item === "string" ? sanitizeInput(item) : item
-      );
+      result[key] = value.map((item) => (typeof item === "string" ? sanitizeInput(item) : item));
     } else {
       result[key] = value;
     }
@@ -116,53 +102,67 @@ export function sanitizeObject(obj: Record<string, unknown>): Record<string, unk
   return result;
 }
 
-// ─── AI PROMPT SANITIZATION ───
 export function sanitizeForPrompt(input: string): string {
-  // Remove prompt injection attempts
   return input
-    .replace(/\{\}/g, "") // Remove template injection
-    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, "") // Remove control chars
-    .substring(0, 2000); // Cap length
+    .replace(/\{\}/g, "")
+    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, "")
+    .substring(0, 2000);
 }
 
-// ─── SECURITY HEADERS ───
 export function getSecurityHeaders(): Record<string, string> {
   return {
     "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
-    "X-XSS-Protection": "1; mode=block",
     "Referrer-Policy": "strict-origin-when-cross-origin",
-    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=()",
+    "Permissions-Policy": "accelerometer=(), ambient-light-sensor=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), fullscreen=(self), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(self), picture-in-picture=(), publickey-credentials-get=(self), screen-wake-lock=(), usb=(), xr-spatial-tracking=()",
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Resource-Policy": "same-site",
+    "Origin-Agent-Cluster": "?1",
     "Content-Security-Policy":
       "default-src 'self'; " +
-      "script-src 'self' 'unsafe-inline' js.stripe.com; " +
-      "style-src 'self' 'unsafe-inline' fonts.googleapis.com; " +
+      "script-src 'self' 'unsafe-inline' https://js.stripe.com https://appleid.cdn-apple.com; " +
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
       "img-src 'self' data: https: blob:; " +
-      "font-src 'self' fonts.gstatic.com data:; " +
-      "connect-src 'self' api.stripe.com api.commerce.coinbase.com; " +
-      "frame-src 'self' js.stripe.com hooks.stripe.com; " +
+      "font-src 'self' https://fonts.gstatic.com data:; " +
+      "connect-src 'self' https://api.stripe.com https://api.commerce.coinbase.com https://api.mainnet-beta.solana.com https://appleid.apple.com https://accounts.google.com https://oauth2.googleapis.com https://api.github.com https://api.x.com; " +
+      "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://appleid.apple.com; " +
       "object-src 'none'; " +
       "base-uri 'self'; " +
-      "form-action 'self';",
+      "form-action 'self' https://appleid.apple.com https://accounts.google.com https://github.com https://x.com; " +
+      "frame-ancestors 'none'; " +
+      "upgrade-insecure-requests;",
     "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
     "Pragma": "no-cache",
     "Expires": "0",
   };
 }
 
-// ─── CORS CONFIG ───
+function normalizeAllowedHost(value: string): string {
+  try {
+    return new URL(value).hostname.toLowerCase();
+  } catch {
+    return value.replace(/^https?:\/\//, "").split("/")[0].toLowerCase();
+  }
+}
+
 export function getCorsConfig() {
   return {
     origin: (origin: string): string | null => {
-      if (!origin) return "*";
-      if (origin.includes("localhost")) return origin;
-      const allowedDomain = env.vaultDomain;
-      if (!allowedDomain) {
-        // When VAULT_DOMAIN is not set, allow all origins for development
-        return origin || "*";
+      if (!origin) return null;
+
+      let hostname = "";
+      try {
+        hostname = new URL(origin).hostname.toLowerCase();
+      } catch {
+        return null;
       }
-      if (origin.includes(allowedDomain)) return origin;
+
+      if (!env.isProduction && ["localhost", "127.0.0.1"].includes(hostname)) return origin;
+
+      const allowedDomain = env.vaultDomain ? normalizeAllowedHost(env.vaultDomain) : "thevaultdfw.win";
+      if (hostname === allowedDomain || hostname.endsWith(`.${allowedDomain}`)) return origin;
+
       return null;
     },
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"] as string[],
@@ -173,13 +173,14 @@ export function getCorsConfig() {
       "X-Session-Id",
       "X-Agent-Token",
       "X-Requested-With",
+      "Stripe-Signature",
+      "X-CC-Webhook-Signature",
     ],
     credentials: true,
     maxAge: 86400,
   };
 }
 
-// ─── AUDIT LOG ───
 interface AuditLogEntry {
   timestamp: string;
   ip: string;
@@ -203,15 +204,14 @@ export function logAudit(entry: Omit<AuditLogEntry, "timestamp">): void {
   if (auditLog.length > MAX_AUDIT_LOG) {
     auditLog.splice(0, auditLog.length - MAX_AUDIT_LOG);
   }
-  // Also log to console for server monitoring
   console.log(
-    `[AUDIT] ${logEntry.timestamp} | ${logEntry.ip} | ${logEntry.method} ${logEntry.path} | ${logEntry.action}${entry.userId ? ` | user:${entry.userId}` : ""}${entry.details ? ` | ${entry.details}` : ""}`
+    `[AUDIT] ${logEntry.timestamp} | ${logEntry.ip} | ${logEntry.method} ${logEntry.path} | ${logEntry.action}${entry.userId ? ` | user:${entry.userId}` : ""}${entry.details ? ` | ${entry.details}` : ""}`,
   );
 }
 
 export function getAuditLog(
   limit: number = 100,
-  filter?: { ip?: string; userId?: number; action?: string }
+  filter?: { ip?: string; userId?: number; action?: string },
 ): AuditLogEntry[] {
   let logs = [...auditLog].reverse();
   if (filter?.ip) logs = logs.filter((l) => l.ip === filter.ip);
@@ -220,9 +220,8 @@ export function getAuditLog(
   return logs.slice(0, limit);
 }
 
-// ─── TOKEN REVOCATION ───
 const revokedTokens = new Set<string>();
-const revokedUserSessions = new Map<number, number>(); // userId -> timestamp
+const revokedUserSessions = new Map<number, number>();
 
 export function revokeToken(token: string): void {
   revokedTokens.add(token);
@@ -241,36 +240,19 @@ export function isUserSessionRevoked(userId: number, tokenIssuedAt: number): boo
   return revokedAt ? tokenIssuedAt < revokedAt : false;
 }
 
-// ─── REQUEST VALIDATION ───
 export function validateUrl(url: string, allowedHosts?: string[]): boolean {
   try {
     const parsed = new URL(url);
-    // Reject non-HTTPS in production
-    if (env.isProduction && parsed.protocol !== "https:") {
-      return false;
-    }
-    // Reject localhost in production
-    if (
-      env.isProduction &&
-      (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1")
-    ) {
-      return false;
-    }
-    // Check allowed hosts if specified
-    if (allowedHosts && !allowedHosts.includes(parsed.hostname)) {
-      return false;
-    }
-    // Reject URLs with credentials
-    if (parsed.username || parsed.password) {
-      return false;
-    }
+    if (env.isProduction && parsed.protocol !== "https:") return false;
+    if (env.isProduction && (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1")) return false;
+    if (allowedHosts && !allowedHosts.includes(parsed.hostname)) return false;
+    if (parsed.username || parsed.password) return false;
     return true;
   } catch {
     return false;
   }
 }
 
-// ─── PASSWORD STRENGTH VALIDATION ───
 export function validatePasswordStrength(password: string): {
   valid: boolean;
   errors: string[];
