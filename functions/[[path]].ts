@@ -17,8 +17,26 @@ type Env = Record<string, unknown> & {
   thevault?: D1Database;
 };
 
+type AuthInput = {
+  name?: string;
+  email?: string;
+  password?: string;
+};
+
 function getD1(env: Env): D1Database | undefined {
   return env.DB || env.thevault;
+}
+
+function getRequestContext(c: any) {
+  return {
+    req: c.req.raw,
+    resHeaders: new Headers(),
+  };
+}
+
+function getPublicAuthError(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message;
+  return "Authentication failed";
 }
 
 const app = new Hono<{ Bindings: Env }>();
@@ -47,6 +65,7 @@ app.use(trimTrailingSlash());
 
 app.use("/api/*", async (c, next) => {
   const isAuth =
+    c.req.path.includes("/api/auth/") ||
     c.req.path.includes("localAuth.login") ||
     c.req.path.includes("localAuth.register") ||
     c.req.path.includes("oauth.initiate") ||
@@ -58,6 +77,7 @@ app.use("/api/*", async (c, next) => {
   if (!result.allowed) {
     return c.json(
       {
+        ok: false,
         error: "Too many requests",
         retryAfter: Math.max(0, Math.ceil((result.resetAt - Date.now()) / 1000)),
       },
@@ -99,6 +119,47 @@ app.get("/api/db/health", async (c) => {
       },
       500,
     );
+  }
+});
+
+app.post("/api/auth/register", async (c) => {
+  let input: AuthInput;
+  try {
+    input = await c.req.json<AuthInput>();
+  } catch {
+    return c.json({ ok: false, error: "Invalid request body" }, 400);
+  }
+
+  try {
+    const caller = appRouter.createCaller(await createContext(getRequestContext(c) as any));
+    const result = await caller.localAuth.register({
+      name: String(input.name || ""),
+      email: String(input.email || ""),
+      password: String(input.password || ""),
+    });
+    return c.json({ ok: true, ...result });
+  } catch (error) {
+    return c.json({ ok: false, error: getPublicAuthError(error) }, 400);
+  }
+});
+
+app.post("/api/auth/login", async (c) => {
+  let input: AuthInput;
+  try {
+    input = await c.req.json<AuthInput>();
+  } catch {
+    return c.json({ ok: false, error: "Invalid request body" }, 400);
+  }
+
+  try {
+    const caller = appRouter.createCaller(await createContext(getRequestContext(c) as any));
+    const result = await caller.localAuth.login({
+      email: String(input.email || ""),
+      password: String(input.password || ""),
+    });
+    return c.json({ ok: true, ...result });
+  } catch (error) {
+    return c.json({ ok: false, error: getPublicAuthError(error) }, 400);
   }
 });
 
