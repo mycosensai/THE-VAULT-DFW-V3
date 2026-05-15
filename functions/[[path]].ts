@@ -23,6 +23,22 @@ type AuthInput = {
   password?: string;
 };
 
+type StripeEvent = {
+  id?: string;
+  type?: string;
+  data?: {
+    object?: Record<string, any>;
+  };
+};
+
+const STRIPE_WEBHOOK_TOLERANCE_SECONDS = 300;
+const STRIPE_ALLOWED_EVENTS = new Set([
+  "checkout.session.completed",
+  "payment_intent.succeeded",
+  "payment_intent.payment_failed",
+  "charge.refunded",
+]);
+
 function getD1(env: Env): D1Database | undefined {
   return env.DB || env.thevault;
 }
@@ -37,6 +53,67 @@ function getRequestContext(c: any) {
 function getPublicAuthError(error: unknown): string {
   if (error instanceof Error && error.message) return error.message;
   return "Authentication failed";
+}
+
+function getEnvString(env: Env, name: string): string {
+  const value = env[name];
+  return typeof value === "string" ? value : "";
+}
+
+function parseStripeSignature(header: string): { timestamp: number; signatures: string[] } {
+  const parts = header.split(",").map((part) => part.trim());
+  const timestampPart = parts.find((part) => part.startsWith("t="));
+  const signatures = parts
+    .filter((part) => part.startsWith("v1="))
+    .map((part) => part.slice(3))
+    .filter(Boolean);
+
+  const timestamp = Number(timestampPart?.slice(2));
+  return { timestamp, signatures };
+}
+
+function hexToBytes(hex: string): Uint8Array {
+  if (!/^[0-9a-f]+$/i.test(hex) || hex.length % 2 !== 0) return new Uint8Array();
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  }
+  return bytes;
+}
+
+function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length || a.length === 0) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
+  return diff === 0;
+}
+
+async function hmacSha256Hex(secret: string, payload: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
+  return [...new Uint8Array(signature)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function verifyStripeSignature(rawBody: string, signatureHeader: string, signingSecret: string) {
+  const { timestamp, signatures } = parseStripeSignature(signatureHeader);
+  if (!timestamp || signatures.length === 0) return { ok: false, error: "Invalid Stripe signature header" };
+
+  const now = Math.floor(Date.now() / 1000);
+  if (Math.abs(now - timestamp) > STRIPE_WEBHOOK_TOLERANCE_SECONDS) {
+    return { ok: false, error: "Stripe webhook timestamp outside tolerance" };
+  }
+
+  const expected = await hmacSha256Hex(signingSecret, `${timestamp}.${rawBody}`);
+  const expectedBytes = hexToBytes(expected);
+  const matched = signatures.some((sig) => timingSafeEqual(expectedBytes, hexToBytes(sig)));
+
+  return matched ? { ok: true } : { ok: false, error: "Stripe signature verification failed" };
 }
 
 const app = new Hono<{ Bindings: Env }>();
@@ -64,6 +141,11 @@ app.use("/api/*", cors(getCorsConfig()));
 app.use(trimTrailingSlash());
 
 app.use("/api/*", async (c, next) => {
+  if (c.req.path === "/api/stripe/webhook") {
+    await next();
+    return;
+  }
+
   const isAuth =
     c.req.path.includes("/api/auth/") ||
     c.req.path.includes("localAuth.login") ||
@@ -120,6 +202,63 @@ app.get("/api/db/health", async (c) => {
       500,
     );
   }
+});
+
+app.post("/api/stripe/webhook", async (c) => {
+  const db = getD1(c.env);
+  if (!db) return c.json({ ok: false, error: "D1 binding missing" }, 500);
+
+  const signingSecret = getEnvString(c.env, "STRIPE_WEBHOOK_SECRET");
+  if (!signingSecret) return c.json({ ok: false, error: "Stripe webhook secret missing" }, 500);
+
+  const signatureHeader = c.req.header("Stripe-Signature") || "";
+  if (!signatureHeader) return c.json({ ok: false, error: "Missing Stripe-Signature header" }, 400);
+
+  const rawBody = await c.req.text();
+  const verified = await verifyStripeSignature(rawBody, signatureHeader, signingSecret);
+  if (!verified.ok) return c.json({ ok: false, error: verified.error }, 400);
+
+  let event: StripeEvent;
+  try {
+    event = JSON.parse(rawBody) as StripeEvent;
+  } catch {
+    return c.json({ ok: false, error: "Invalid JSON payload" }, 400);
+  }
+
+  if (!event.id || !event.type) return c.json({ ok: false, error: "Invalid Stripe event" }, 400);
+
+  const duplicate = await db.prepare("SELECT id FROM webhook_events WHERE id = ? LIMIT 1").bind(event.id).first();
+  if (duplicate) return c.json({ ok: true, duplicate: true, eventId: event.id });
+
+  if (!STRIPE_ALLOWED_EVENTS.has(event.type)) {
+    await db
+      .prepare("INSERT INTO webhook_events (id, provider, event_type, processed_at, metadata) VALUES (?, ?, ?, ?, ?)")
+      .bind(event.id, "stripe", event.type, Date.now(), JSON.stringify({ ignored: true }))
+      .run();
+    return c.json({ ok: true, ignored: true, type: event.type });
+  }
+
+  const object = event.data?.object || {};
+  const sessionId = typeof object.id === "string" ? object.id : "";
+
+  if (event.type === "checkout.session.completed" && sessionId) {
+    await db.prepare("UPDATE stripe_sessions SET status = ? WHERE session_id = ?").bind("completed", sessionId).run();
+    const session = await db.prepare("SELECT listing_id FROM stripe_sessions WHERE session_id = ? LIMIT 1").bind(sessionId).first<{ listing_id: number }>();
+    if (session?.listing_id) {
+      await db.prepare("UPDATE listings SET status = ? WHERE id = ?").bind("sold", session.listing_id).run();
+    }
+  }
+
+  if (event.type === "payment_intent.payment_failed" && sessionId) {
+    await db.prepare("UPDATE stripe_sessions SET status = ? WHERE session_id = ?").bind("failed", sessionId).run();
+  }
+
+  await db
+    .prepare("INSERT INTO webhook_events (id, provider, event_type, processed_at, metadata) VALUES (?, ?, ?, ?, ?)")
+    .bind(event.id, "stripe", event.type, Date.now(), JSON.stringify({ sessionId }))
+    .run();
+
+  return c.json({ ok: true, eventId: event.id, type: event.type });
 });
 
 app.post("/api/auth/register", async (c) => {
