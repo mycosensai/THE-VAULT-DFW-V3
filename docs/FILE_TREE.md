@@ -29,10 +29,17 @@ api/
 ## Cloudflare Runtime
 
 ```txt
-functions/           Cloudflare Pages Functions entrypoints
+functions/           Cloudflare Pages Functions entrypoint
 worker/              Worker runtime entrypoint for asset/API deployment
-wrangler.toml        Cloudflare project, D1, and asset configuration
+wrangler.toml        Cloudflare project, D1, SPA asset, and Worker config
 ```
+
+Important deployment note:
+
+- `functions/[[path]].ts` is used by Cloudflare Pages Functions deployments.
+- `worker/index.ts` is used by direct Wrangler Worker deployments.
+- Both paths are intentionally kept because the project has been deployed through both Cloudflare modes during stabilization.
+- Do not delete either runtime entrypoint unless the Cloudflare deployment mode is fully standardized first.
 
 ## Database
 
@@ -72,7 +79,7 @@ Runs:
 - production build
 - lint check
 
-## Notes
+## Cleanup Notes
 
 No literal files named `import 1`, `import 2`, `import_1`, or similar were found in the repository during cleanup.
 
@@ -87,3 +94,12 @@ docs/FILE_TREE.md
 ```
 
 Avoid renaming runtime files like `functions/[[path]].ts`, `worker/index.ts`, or router files unless imports are updated at the same time.
+
+## Recommended Future Refactor
+
+After launch, standardize on one Cloudflare deployment mode:
+
+1. Cloudflare Pages + Pages Functions, or
+2. Wrangler Worker + Assets.
+
+Until that decision is final, both runtime entrypoints should remain to avoid breaking production routes.
