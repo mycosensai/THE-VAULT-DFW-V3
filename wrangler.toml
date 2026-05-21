@@ -1,4 +1,4 @@
-name = "thisistheone"
+name = "the-vault-dfw-v3"
 main = "worker/index.ts"
 compatibility_date = "2025-04-01"
 compatibility_flags = []
