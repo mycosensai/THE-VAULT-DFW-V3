@@ -32,6 +32,39 @@ function GitHubIcon({ className }: { className?: string }) {
   )
 }
 
+function persistAuthToken(token: string) {
+  try {
+    sessionStorage.setItem('local_auth_token', token)
+    localStorage.setItem('vault_auth_present', 'true')
+  } catch (err) {
+    console.error('Unable to persist auth token', err)
+  }
+}
+
+function normalizeEmail(value: string) {
+  return value.trim().toLowerCase()
+}
+
+function cleanAuthError(message: string) {
+  if (!message) {
+    return 'Authentication failed. Please try again.'
+  }
+
+  if (
+    message.includes('Unable to transform response') ||
+    message.includes('Unexpected token') ||
+    message.includes('Unexpected end of JSON')
+  ) {
+    return 'Authentication service temporarily unavailable. The API may still be deploying or restarting.'
+  }
+
+  if (message.includes('Failed to fetch')) {
+    return 'Unable to reach authentication servers. Please check your connection and try again.'
+  }
+
+  return message
+}
+
 function ProviderButton({
   label,
   icon,
@@ -58,16 +91,6 @@ function ProviderButton({
   )
 }
 
-function cleanAuthError(message: string) {
-  if (message.includes('Unable to transform response')) {
-    return 'The authentication service is not returning a valid response yet. Please redeploy the latest API fixes and try again.'
-  }
-  if (message.includes('Unexpected end of JSON')) {
-    return 'The authentication service returned an empty response. Please try again.'
-  }
-  return message || 'Authentication failed'
-}
-
 export default function Login() {
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [email, setEmail] = useState('')
@@ -76,59 +99,82 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
 
+  const handleAuthSuccess = (token?: string) => {
+    if (!token) {
+      setError('Authentication completed but no token was returned.')
+      return
+    }
+
+    persistAuthToken(token)
+    window.location.href = '/'
+  }
+
   const loginMutation = trpc.localAuth.login.useMutation({
-    onSuccess: (data) => {
-      localStorage.setItem('local_auth_token', data.token)
-      window.location.href = '/'
-    },
+    onSuccess: (data) => handleAuthSuccess(data?.token),
     onError: (err) => setError(cleanAuthError(err.message)),
   })
 
   const registerMutation = trpc.localAuth.register.useMutation({
-    onSuccess: (data) => {
-      localStorage.setItem('local_auth_token', data.token)
-      window.location.href = '/'
-    },
+    onSuccess: (data) => handleAuthSuccess(data?.token),
     onError: (err) => setError(cleanAuthError(err.message)),
   })
 
   const getOAuthUrl = trpc.oauth.getAuthUrl.useMutation({
     onSuccess: (data) => {
-      if (data.url) {
+      if (data?.url) {
         window.location.href = data.url
-      } else if (data.error) {
-        setError(data.error)
+        return
       }
+
+      setError(data?.error || 'OAuth provider unavailable.')
     },
     onError: (err) => setError(cleanAuthError(err.message)),
   })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (loginMutation.isPending || registerMutation.isPending) {
+      return
+    }
+
     setError('')
 
+    const normalizedEmail = normalizeEmail(email)
+    const trimmedName = name.trim()
+
     if (mode === 'login') {
-      if (!email || !password) {
+      if (!normalizedEmail || !password) {
         setError('Email and password are required')
         return
       }
-      loginMutation.mutate({ email, password })
+
+      loginMutation.mutate({ email: normalizedEmail, password })
       return
     }
 
-    if (!name || !email || !password) {
+    if (!trimmedName || !normalizedEmail || !password) {
       setError('All fields are required')
       return
     }
+
     if (password.length < 8) {
       setError('Password must be at least 8 characters')
       return
     }
 
-    registerMutation.mutate({ name, email, password })
+    registerMutation.mutate({
+      name: trimmedName,
+      email: normalizedEmail,
+      password,
+    })
   }
 
   const handleProviderOAuth = (provider: 'google' | 'x' | 'github') => {
+    if (getOAuthUrl.isPending) {
+      return
+    }
+
     setError('')
     getOAuthUrl.mutate({ provider })
   }
@@ -190,6 +236,7 @@ export default function Login() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="John Collector"
+                  maxLength={80}
                   className="w-full bg-[#1E1E1E] border border-[#C9A84C]/20 text-[#F5EED8] text-sm py-3 px-4 outline-none focus:border-[#C9A84C] transition-colors placeholder:text-[#8A6E2F]"
                 />
               </div>
@@ -199,6 +246,7 @@ export default function Login() {
               <label className="block text-[9px] tracking-[4px] uppercase text-[#C9A84C] mb-2">Email</label>
               <input
                 type="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="collector@vault.com"
@@ -211,6 +259,7 @@ export default function Login() {
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Min 8 characters"
