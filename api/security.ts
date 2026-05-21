@@ -3,8 +3,11 @@ import { env } from "./lib/env";
 interface RateLimitEntry {
   count: number;
   windowStart: number;
+  lastSeen: number;
 }
+
 const rateLimitStore = new Map<string, RateLimitEntry>();
+const MAX_RATE_LIMIT_ENTRIES = 10000;
 
 export interface RateLimitConfig {
   windowMs: number;
@@ -22,6 +25,18 @@ export const STRICT_RATE_LIMIT: RateLimitConfig = {
   maxRequests: 5,
 };
 
+function pruneRateLimitStore(now: number) {
+  if (rateLimitStore.size < MAX_RATE_LIMIT_ENTRIES) {
+    return;
+  }
+
+  for (const [key, entry] of rateLimitStore.entries()) {
+    if (now - entry.lastSeen > 15 * 60 * 1000) {
+      rateLimitStore.delete(key);
+    }
+  }
+}
+
 export function getClientIP(req: Request): string {
   return (
     req.headers.get("cf-connecting-ip") ||
@@ -37,16 +52,26 @@ export function checkRateLimit(
 ): { allowed: boolean; remaining: number; resetAt: number } {
   const key = (config.keyGenerator || getClientIP)(req);
   const now = Date.now();
+
+  pruneRateLimitStore(now);
+
   const entry = rateLimitStore.get(key);
 
   if (!entry || now - entry.windowStart > config.windowMs) {
-    rateLimitStore.set(key, { count: 1, windowStart: now });
+    rateLimitStore.set(key, {
+      count: 1,
+      windowStart: now,
+      lastSeen: now,
+    });
+
     return {
       allowed: true,
       remaining: config.maxRequests - 1,
       resetAt: now + config.windowMs,
     };
   }
+
+  entry.lastSeen = now;
 
   if (entry.count >= config.maxRequests) {
     return {
@@ -57,6 +82,7 @@ export function checkRateLimit(
   }
 
   entry.count++;
+
   return {
     allowed: true,
     remaining: config.maxRequests - entry.count,
@@ -71,13 +97,19 @@ const XSS_PATTERNS = [
   /<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi,
   /<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi,
   /<embed\b[^<]*>/gi,
+  /data:text\/html/gi,
+  /vbscript:/gi,
 ];
 
 export function sanitizeInput(input: string): string {
-  let sanitized = input;
+  const truncated = input.slice(0, 5000);
+
+  let sanitized = truncated;
+
   for (const pattern of XSS_PATTERNS) {
     sanitized = sanitized.replace(pattern, "[removed]");
   }
+
   return sanitized
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -88,6 +120,7 @@ export function sanitizeInput(input: string): string {
 
 export function sanitizeObject(obj: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {};
+
   for (const [key, value] of Object.entries(obj)) {
     if (typeof value === "string") {
       result[key] = sanitizeInput(value);
@@ -99,6 +132,7 @@ export function sanitizeObject(obj: Record<string, unknown>): Record<string, unk
       result[key] = value;
     }
   }
+
   return result;
 }
 
@@ -114,10 +148,12 @@ export function getSecurityHeaders(): Record<string, string> {
     "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
+    "X-DNS-Prefetch-Control": "off",
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "Permissions-Policy": "accelerometer=(), ambient-light-sensor=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), fullscreen=(self), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(self), picture-in-picture=(), publickey-credentials-get=(self), screen-wake-lock=(), usb=(), xr-spatial-tracking=()",
     "Cross-Origin-Opener-Policy": "same-origin",
     "Cross-Origin-Resource-Policy": "same-site",
+    "Cross-Origin-Embedder-Policy": "credentialless",
     "Origin-Agent-Cluster": "?1",
     "Content-Security-Policy":
       "default-src 'self'; " +
@@ -127,6 +163,8 @@ export function getSecurityHeaders(): Record<string, string> {
       "font-src 'self' https://fonts.gstatic.com data:; " +
       "connect-src 'self' https://api.stripe.com https://api.commerce.coinbase.com https://api.mainnet-beta.solana.com https://appleid.apple.com https://accounts.google.com https://oauth2.googleapis.com https://api.github.com https://api.x.com; " +
       "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://appleid.apple.com; " +
+      "media-src 'none'; " +
+      "worker-src 'self' blob:; " +
       "object-src 'none'; " +
       "base-uri 'self'; " +
       "form-action 'self' https://appleid.apple.com https://accounts.google.com https://github.com https://x.com; " +
@@ -152,16 +190,22 @@ export function getCorsConfig() {
       if (!origin) return null;
 
       let hostname = "";
+
       try {
         hostname = new URL(origin).hostname.toLowerCase();
       } catch {
         return null;
       }
 
-      if (!env.isProduction && ["localhost", "127.0.0.1"].includes(hostname)) return origin;
+      if (!env.isProduction && ["localhost", "127.0.0.1"].includes(hostname)) {
+        return origin;
+      }
 
       const allowedDomain = env.vaultDomain ? normalizeAllowedHost(env.vaultDomain) : "thevaultdfw.win";
-      if (hostname === allowedDomain || hostname.endsWith(`.${allowedDomain}`)) return origin;
+
+      if (hostname === allowedDomain || hostname.endsWith(`.${allowedDomain}`)) {
+        return origin;
+      }
 
       return null;
     },
@@ -175,7 +219,9 @@ export function getCorsConfig() {
       "X-Requested-With",
       "Stripe-Signature",
       "X-CC-Webhook-Signature",
+      "X-Client-Version",
     ],
+    exposeHeaders: ["Retry-After"],
     credentials: true,
     maxAge: 86400,
   };
@@ -200,10 +246,13 @@ export function logAudit(entry: Omit<AuditLogEntry, "timestamp">): void {
     ...entry,
     timestamp: new Date().toISOString(),
   };
+
   auditLog.push(logEntry);
+
   if (auditLog.length > MAX_AUDIT_LOG) {
     auditLog.splice(0, auditLog.length - MAX_AUDIT_LOG);
   }
+
   console.log(
     `[AUDIT] ${logEntry.timestamp} | ${logEntry.ip} | ${logEntry.method} ${logEntry.path} | ${logEntry.action}${entry.userId ? ` | user:${entry.userId}` : ""}${entry.details ? ` | ${entry.details}` : ""}`,
   );
@@ -214,9 +263,11 @@ export function getAuditLog(
   filter?: { ip?: string; userId?: number; action?: string },
 ): AuditLogEntry[] {
   let logs = [...auditLog].reverse();
+
   if (filter?.ip) logs = logs.filter((l) => l.ip === filter.ip);
   if (filter?.userId) logs = logs.filter((l) => l.userId === filter.userId);
   if (filter?.action) logs = logs.filter((l) => l.action === filter.action);
+
   return logs.slice(0, limit);
 }
 
@@ -224,7 +275,9 @@ const revokedTokens = new Set<string>();
 const revokedUserSessions = new Map<number, number>();
 
 export function revokeToken(token: string): void {
-  revokedTokens.add(token);
+  if (token.length < 4096) {
+    revokedTokens.add(token);
+  }
 }
 
 export function revokeAllUserSessions(userId: number): void {
@@ -243,10 +296,12 @@ export function isUserSessionRevoked(userId: number, tokenIssuedAt: number): boo
 export function validateUrl(url: string, allowedHosts?: string[]): boolean {
   try {
     const parsed = new URL(url);
+
     if (env.isProduction && parsed.protocol !== "https:") return false;
     if (env.isProduction && (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1")) return false;
     if (allowedHosts && !allowedHosts.includes(parsed.hostname)) return false;
     if (parsed.username || parsed.password) return false;
+
     return true;
   } catch {
     return false;
@@ -258,10 +313,16 @@ export function validatePasswordStrength(password: string): {
   errors: string[];
 } {
   const errors: string[] = [];
+
   if (password.length < 8) errors.push("Minimum 8 characters");
+  if (password.length > 128) errors.push("Maximum 128 characters");
   if (!/[A-Z]/.test(password)) errors.push("At least one uppercase letter");
   if (!/[a-z]/.test(password)) errors.push("At least one lowercase letter");
   if (!/[0-9]/.test(password)) errors.push("At least one number");
   if (!/[^A-Za-z0-9]/.test(password)) errors.push("At least one special character");
-  return { valid: errors.length === 0, errors };
+
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
 }
