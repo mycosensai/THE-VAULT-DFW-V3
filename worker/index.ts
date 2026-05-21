@@ -11,20 +11,20 @@ import { checkRateLimit, getCorsConfig, getSecurityHeaders } from "../api/securi
 
 type Env = Record<string, unknown> & {
   DB?: D1Database;
-  thevault?: D1Database;
   ASSETS?: Fetcher;
 };
 
 const app = new Hono<{ Bindings: Env }>();
 
 function getD1(env: Env): D1Database | undefined {
-  return env.DB || env.thevault;
+  return env.DB;
 }
 
 app.use(async (c, next) => {
   setCloudflareEnv(c.env);
 
   const d1 = getD1(c.env);
+
   if (d1) {
     setDb(d1);
   }
@@ -82,10 +82,19 @@ app.get("/api/db/health", async (c) => {
   }
 
   try {
-    const result = await d1.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name LIMIT 100").all();
+    const result = await d1
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name LIMIT 100")
+      .all();
+
     return c.json({ ok: true, tables: result.results ?? [] });
   } catch (err) {
-    return c.json({ ok: false, error: err instanceof Error ? err.message : "D1 query failed" }, 500);
+    return c.json(
+      {
+        ok: false,
+        error: err instanceof Error ? err.message : "D1 query failed",
+      },
+      500,
+    );
   }
 });
 
@@ -102,6 +111,7 @@ async function handleTRPC(c: any) {
     });
   } catch (err) {
     console.error("[tRPC Handler Error]", err);
+
     return c.json({ error: "Internal server error" }, 500);
   }
 }
@@ -109,7 +119,15 @@ async function handleTRPC(c: any) {
 app.all("/api/trpc", handleTRPC);
 app.all("/api/trpc/*", handleTRPC);
 
-app.all("/api/*", (c) => c.json({ error: "API route not found", path: c.req.path }, 404));
+app.all("/api/*", (c) =>
+  c.json(
+    {
+      error: "API route not found",
+      path: c.req.path,
+    },
+    404,
+  ),
+);
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
@@ -123,6 +141,8 @@ export default {
       return env.ASSETS.fetch(request);
     }
 
-    return app.fetch(request, env, ctx);
+    return new Response("Static assets unavailable", {
+      status: 503,
+    });
   },
 };
