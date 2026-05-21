@@ -7,25 +7,94 @@ import type { ReactNode } from "react";
 
 export const trpc = createTRPCReact<AppRouter>();
 
-const queryClient = new QueryClient();
+function getStoredAuthToken() {
+  try {
+    const sessionToken = sessionStorage.getItem("local_auth_token");
+    if (sessionToken) {
+      return sessionToken;
+    }
+
+    const legacyToken = localStorage.getItem("local_auth_token");
+
+    if (legacyToken) {
+      sessionStorage.setItem("local_auth_token", legacyToken);
+      localStorage.removeItem("local_auth_token");
+      return legacyToken;
+    }
+  } catch (err) {
+    console.error("Unable to access auth storage", err);
+  }
+
+  return null;
+}
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 30_000,
+      refetchOnWindowFocus: false,
+    },
+    mutations: {
+      retry: false,
+    },
+  },
+});
+
 const trpcClient = trpc.createClient({
   links: [
     httpBatchLink({
       url: "/api/trpc",
       transformer: superjson,
       headers() {
-        const token = localStorage.getItem("local_auth_token");
-        const sessionId = localStorage.getItem("vault_session_id");
-        const headers: Record<string, string> = {};
-        if (token) headers["x-local-auth-token"] = token;
-        if (sessionId) headers["x-session-id"] = sessionId;
+        const token = getStoredAuthToken();
+
+        let sessionId: string | null = null;
+
+        try {
+          sessionId = localStorage.getItem("vault_session_id");
+        } catch (err) {
+          console.error("Unable to access session storage", err);
+        }
+
+        const headers: Record<string, string> = {
+          "x-client-version": "vault-v3",
+        };
+
+        if (token) {
+          headers["x-local-auth-token"] = token;
+        }
+
+        if (sessionId) {
+          headers["x-session-id"] = sessionId;
+        }
+
         return headers;
       },
-      fetch(input, init) {
-        return globalThis.fetch(input, {
-          ...(init ?? {}),
-          credentials: "include",
-        });
+      async fetch(input, init) {
+        try {
+          const response = await globalThis.fetch(input, {
+            ...(init ?? {}),
+            credentials: "include",
+            headers: {
+              ...(init?.headers ?? {}),
+              Accept: "application/json",
+            },
+          });
+
+          if (response.status === 401) {
+            try {
+              sessionStorage.removeItem("local_auth_token");
+            } catch (err) {
+              console.error("Unable to clear expired auth token", err);
+            }
+          }
+
+          return response;
+        } catch (err) {
+          console.error("TRPC network request failed", err);
+          throw err;
+        }
       },
     }),
   ],
