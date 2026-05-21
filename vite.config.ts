@@ -1,29 +1,31 @@
+import path from "node:path"
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
     proxy: {
-      '/api': {
-        target: 'http://localhost:8788',
+      "/api": {
+        target: "http://localhost:8788",
         changeOrigin: true,
-      }
-    }
+      },
+    },
   },
   resolve: {
     alias: {
-      "@": new URL("./src", import.meta.url).pathname,
-      "@contracts": new URL("./contracts", import.meta.url).pathname,
-      "@db": new URL("./db", import.meta.url).pathname,
-      "db": new URL("./db", import.meta.url).pathname,
+      "@": path.resolve(__dirname, "./src"),
+      "@contracts": path.resolve(__dirname, "./contracts"),
+      "@db": path.resolve(__dirname, "./db"),
+      "db": path.resolve(__dirname, "./db"),
     },
   },
   build: {
     outDir: "dist",
     emptyOutDir: true,
+    sourcemap: false,
+    target: "esnext",
     rollupOptions: {
       output: {
         manualChunks: {
