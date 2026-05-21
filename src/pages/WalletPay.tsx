@@ -42,7 +42,11 @@ export default function WalletPay() {
     )
   }
 
-  const solPrice = rate ? (Number(listing.price) / rate.solUsd).toFixed(6) : '...'
+  const solUsdRate = rate?.solUsd ?? null
+  const solPrice = solUsdRate && solUsdRate > 0
+    ? (Number(listing.price) / solUsdRate).toFixed(6)
+    : '...'
+
   const paymentData = createPayment.data
 
   return (
@@ -69,7 +73,6 @@ export default function WalletPay() {
           <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-[#C9A84C]" />
           <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-[#C9A84C]" />
 
-          {/* Zero Funds Banner */}
           <div className="p-4 bg-emerald-500/5 border-b border-emerald-500/20">
             <div className="flex items-center gap-2 mb-1">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
@@ -78,7 +81,6 @@ export default function WalletPay() {
             <p className="text-[10px] text-[#C8BC98]">The Vault never holds your funds. This is a direct Solana blockchain transfer.</p>
           </div>
 
-          {/* Item */}
           <div className="p-6 sm:p-8 border-b border-[#C9A84C]/15">
             <h3 className="text-[9px] tracking-[4px] uppercase text-[#C9A84C] mb-4 font-cinzel font-semibold">Order Summary</h3>
             <div className="flex gap-4">
@@ -92,11 +94,10 @@ export default function WalletPay() {
             </div>
           </div>
 
-          {/* Price */}
           <div className="p-6 sm:p-8 border-b border-[#C9A84C]/15">
             <div className="space-y-3">
               <div className="flex justify-between text-sm"><span className="text-[#C8BC98]">Price (USD)</span><span className="text-[#F5EED8] font-cinzel">${Number(listing.price).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span></div>
-              <div className="flex justify-between text-sm"><span className="text-[#C8BC98]">SOL/USD</span><span className="text-[#C9A84C] font-cinzel">${rate?.solUsd?.toLocaleString() || '...'}</span></div>
+              <div className="flex justify-between text-sm"><span className="text-[#C8BC98]">SOL/USD</span><span className="text-[#C9A84C] font-cinzel">${solUsdRate?.toLocaleString() || '...'}</span></div>
               <div className="flex justify-between text-sm pt-3 border-t border-[#C9A84C]/15">
                 <span className="text-[#F5EED8] font-medium">Send</span>
                 <span className="font-cinzel text-xl font-bold text-[#FFD97A]">{solPrice} SOL</span>
@@ -104,7 +105,6 @@ export default function WalletPay() {
             </div>
           </div>
 
-          {/* Wallet Input */}
           {!paymentCreated ? (
             <div className="p-6 sm:p-8 border-b border-[#C9A84C]/15">
               <h3 className="text-[9px] tracking-[4px] uppercase text-[#C9A84C] mb-4 font-cinzel font-semibold">Your Wallet Address</h3>
@@ -136,7 +136,7 @@ export default function WalletPay() {
                   Send exactly {paymentData?.amount} SOL directly to the seller&apos;s wallet. This is a wallet-to-wallet transfer. The Vault never touches your funds.
                 </p>
               </div>
-              {/* Transaction Hash Input */}
+
               <div className="mb-4">
                 <label className="text-[9px] tracking-[3px] uppercase text-[#C9A84C] mb-2 block font-cinzel">Transaction Signature</label>
                 <p className="text-[10px] text-[#8A6E2F] mb-2">Paste your Solana transaction signature after sending</p>
@@ -157,7 +157,6 @@ export default function WalletPay() {
             </div>
           )}
 
-          {/* Disclaimer */}
           <div className="p-6 sm:p-8">
             <div className="flex items-center gap-2 mb-2">
               <Wallet className="w-4 h-4 text-emerald-400" />
