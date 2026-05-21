@@ -1,8 +1,11 @@
 {
   "name": "the-vault-dfw-v3",
   "private": true,
-  "version": "0.0.0",
+  "version": "3.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -11,7 +14,10 @@
     "check": "tsc -b",
     "format": "prettier --write .",
     "test": "vitest run",
-    "deploy": "npm run check && npm run build && wrangler pages deploy dist"
+    "deploy": "npm run check && npm run build && wrangler deploy",
+    "cf:deploy": "wrangler deploy",
+    "cf:tail": "wrangler tail",
+    "cf:d1": "wrangler d1 execute thevault --remote"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
