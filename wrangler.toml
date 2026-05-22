@@ -1,11 +1,10 @@
 name = "the-vault-dfw-v3"
-main = "worker/index.ts"
-compatibility_date = "2025-04-01"
-compatibility_flags = ["nodejs_compat"]
+compatibility_date = "2026-05-22"
 
-[assets]
-directory = "./dist"
-not_found_handling = "single-page-application"
+pages_build_output_dir = "dist"
+
+[vars]
+ENVIRONMENT = "production"
 
 [observability.logs]
 enabled = true
@@ -14,3 +13,5 @@ enabled = true
 binding = "DB"
 database_name = "thevault"
 database_id = "375949ce-7c7d-4822-8235-461446769258"
+
+
