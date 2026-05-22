@@ -7,14 +7,10 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview",
-    "check": "tsc -b",
-    "format": "prettier --write .",
-    "test": "vitest run",
-    "deploy": "npm run check && npm run build && wrangler deploy",
+  "dev": "vite",
+  "build": "vite build",
+  "deploy": "vite build && wrangler pages deploy dist"
+}
     "cf:deploy": "wrangler deploy",
     "cf:tail": "wrangler tail",
     "cf:d1": "wrangler d1 execute thevault --remote"
