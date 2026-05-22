@@ -5,7 +5,8 @@ import './index.css'
 import { TRPCProvider } from '@/providers/trpc'
 import App from './App.tsx'
 
-const clerkPubKey = import.meta.env.pk_test_bGlnaHQtbG91c2UtODMuY2xlcmsuYWNjb3VudHMuZGV2JA
+const clerkPubKey = CLERK_PUBLISHABKE_KEY
+Import.meta.env.
 function createSessionId() {
   if (globalThis.crypto?.randomUUID) {
     return `sess_${globalThis.crypto.randomUUID()}`
