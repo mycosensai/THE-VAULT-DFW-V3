@@ -5,3 +5,12 @@ pages_build_output_dir = "dist"
 
 [observability.logs]
 enabled = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "thevault"
+database_id = "REPLACE_WITH_REAL_D1_DATABASE_ID"
+
+[vars]
+ENVIRONMENT = "production"
+VITE_APP_NAME = "THE-VAULT-DFW-V3"
