@@ -5,6 +5,7 @@ const EnvSchema = z.object({
   NODE_ENV: z.enum(["development", "production"]).default("development"),
   STRIPE_SECRET_KEY: z.string().optional(),
   VITE_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
+  VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
   OPENAI_API_KEY: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
   VAULT_DOMAIN: z.string().optional(),
