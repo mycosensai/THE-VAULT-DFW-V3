@@ -3,9 +3,6 @@ compatibility_date = "2026-05-22"
 
 pages_build_output_dir = "dist"
 
-[vars]
-ENVIRONMENT = "production"
-
 [observability.logs]
 enabled = true
 
