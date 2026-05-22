@@ -5,10 +5,3 @@ pages_build_output_dir = "dist"
 
 [observability.logs]
 enabled = true
-
-[[d1_databases]]
-binding = "DB"
-database_name = "thevault"
-database_id = "375949ce-7c7d-4822-8235-461446769258"
-
-
