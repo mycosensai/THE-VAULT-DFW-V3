@@ -71,13 +71,10 @@ export default function WalletPay() {
   }
 
   // ===== SAFE NULL-CHECK FIX =====
-  const solUsdRate = rate?.solUsd ?? null
-
   const solPrice =
-    solUsdRate && solUsdRate > 0
-      ? (Number(listing.price) / solUsdRate).toFixed(6)
-      : '...'
-
+  rate?.solUsd != null
+    ? (Number(listing.price) / rate.solUsd).toFixed(6)
+    : '...'
   // ===============================
 
   const paymentData = createPayment.data
