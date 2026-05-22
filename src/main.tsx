@@ -6,7 +6,7 @@ import { TRPCProvider } from '@/providers/trpc'
 import App from './App.tsx'
 
 const clerkPubKey = CLERK_PUBLISHABKE_KEY
-Import.meta.env.
+import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 function createSessionId() {
   if (globalThis.crypto?.randomUUID) {
     return `sess_${globalThis.crypto.randomUUID()}`
