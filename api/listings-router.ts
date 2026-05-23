@@ -5,6 +5,7 @@ import { listings, categories } from "@db/schema";
 import { eq, desc, sql } from "drizzle-orm";
 import { sanitizeInput, logAudit, getClientIP } from "./security";
 import { autoTriggerFromAction } from "./lib/auto-trigger";
+import { getCommissionRateFromTiers } from "./lib/commission";
 
 export const listingsRouter = createRouter({
   list: publicQuery
@@ -99,12 +100,7 @@ export const listingsRouter = createRouter({
     .mutation(async ({ input, ctx }) => {
       const db = getDb();
 
-      // Calculate commission rate based on price
-      let rate = "5.00";
-      if (input.price >= 10000) rate = "5.00";
-      else if (input.price >= 7500) rate = "10.00";
-      else if (input.price >= 1000) rate = "7.00";
-      else rate = "5.00";
+      const rate = await getCommissionRateFromTiers(db, input.price);
 
       // Sanitize text inputs to prevent XSS
       const sanitizedInput = {

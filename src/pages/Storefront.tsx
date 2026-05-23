@@ -33,8 +33,8 @@ const sortOptions = [
 export default function Storefront() {
   const [searchParams, setSearchParams] = useSearchParams()
   const initialCategory = searchParams.get('category') || undefined
-  const paymentSuccess = searchParams.get('success') === 'true' || searchParams.get('coinbase_success') === 'true'
-  const paymentCancelled = searchParams.get('cancelled') === 'true' || searchParams.get('coinbase_cancelled') === 'true'
+  const paymentSuccess = searchParams.get('success') === 'true'
+  const paymentCancelled = searchParams.get('cancelled') === 'true'
 
   const [search, setSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState(initialCategory)

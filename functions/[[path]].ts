@@ -120,6 +120,7 @@ const app = new Hono<{ Bindings: Env }>();
 
 app.use(async (c, next) => {
   setCloudflareEnv(c.env as unknown as Record<string, unknown>);
+  (globalThis as any).__cfExecCtx = c.executionCtx;
 
   const db = getD1(c.env);
   if (db) {

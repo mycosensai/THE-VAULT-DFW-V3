@@ -150,10 +150,11 @@ export async function autoTriggerFromAction(
   value?: number,
   listingId?: number
 ): Promise<{ dispatched: boolean; messagesSent: number; blocked: number }> {
-  const db = getDb();
-  const startTime = Date.now();
-
-  try {
+  const execCtx = (globalThis as any).__cfExecCtx as ExecutionContext | undefined;
+  const work = (async () => {
+    const db = getDb();
+    const startTime = Date.now();
+    try {
     // Log the trigger
     await db.insert(agentLogs).values({
       event: "auto_trigger_fired",
@@ -199,7 +200,8 @@ export async function autoTriggerFromAction(
         confidence: msg.score,
       });
 
-      const outreachId = `prtn-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`;
+      const randomPart = crypto.getRandomValues(new Uint8Array(3));
+      const outreachId = `prtn-${Date.now()}-${Array.from(randomPart).map((x) => x.toString(16).padStart(2, "0")).join("")}`;
       await db.insert(partnershipOutreach).values({
         outreachId,
         companyName: target.companyName,
@@ -227,8 +229,16 @@ export async function autoTriggerFromAction(
       durationSeconds: Math.round((Date.now() - startTime) / 1000),
     });
 
-    return { dispatched: true, messagesSent: sent, blocked };
-  } catch {
-    return { dispatched: false, messagesSent: 0, blocked: 0 };
+      return { dispatched: true, messagesSent: sent, blocked };
+    } catch {
+      return { dispatched: false, messagesSent: 0, blocked: 0 };
+    }
+  })();
+
+  if (execCtx?.waitUntil) {
+    execCtx.waitUntil(work);
+    return { dispatched: true, messagesSent: 0, blocked: 0 };
   }
+
+  return work;
 }

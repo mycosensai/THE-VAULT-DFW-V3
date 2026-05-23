@@ -12,8 +12,6 @@ interface CloudflareEnv {
   OWNER_UNION_ID?: string;
   STRIPE_SECRET_KEY?: string;
   VITE_STRIPE_PUBLISHABLE_KEY?: string;
-  COINBASE_API_KEY?: string;
-  COINBASE_WEBHOOK_SECRET?: string;
   OPENAI_API_KEY?: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
@@ -45,8 +43,6 @@ export const env = {
   get ownerUnionId(): string { return cfEnv.OWNER_UNION_ID || ""; },
   get stripeSecretKey(): string { return cfEnv.STRIPE_SECRET_KEY || ""; },
   get stripePublishableKey(): string { return cfEnv.VITE_STRIPE_PUBLISHABLE_KEY || ""; },
-  get coinbaseApiKey(): string { return cfEnv.COINBASE_API_KEY || ""; },
-  get coinbaseWebhookSecret(): string { return cfEnv.COINBASE_WEBHOOK_SECRET || ""; },
   get openaiApiKey(): string { return cfEnv.OPENAI_API_KEY || ""; },
   get googleClientId(): string { return cfEnv.GOOGLE_CLIENT_ID || ""; },
   get googleClientSecret(): string { return cfEnv.GOOGLE_CLIENT_SECRET || ""; },
