@@ -140,3 +140,27 @@ Implement the production auth foundation:
    - `GET /api/db/health`
    - Stripe webhook test event with valid signature.
 4. Gate production release on green build + smoke checks in CI.
+
+## Cloudflare Shipping Audit Update (2026-05-23, Pass 2)
+
+### Scope verified in this pass
+- Removed active Coinbase integration from runtime API/router path and frontend checkout flow.
+- Added autonomous trigger wiring for `verify` and `tokenize` on blockchain certification.
+- Added Cloudflare execution-context handoff for `waitUntil` trigger dispatch.
+- Switched appraisal/listing commission lookup to DB tier-based logic.
+- Migrated local auth password hashing from bcrypt to Web Crypto PBKDF2.
+
+### Current status
+- **Pages entrypoint**: using `functions/[[path]].ts`.
+- **Worker duplicate entrypoint**: removed (`worker/index.ts` deleted).
+- **Crypto providers in UI**: OpenSea / Rarible / Magic Eden options are present.
+- **Coinbase active router**: removed from `api/router.ts`.
+- **Coinbase env accessors**: removed from `api/lib/env.ts`.
+
+### Remaining deployment risk in this environment
+- Full build/deploy verification is still blocked by npm registry access errors (403), so `npm ci` and `npm run build` cannot be completed in this runtime.
+- Recommend CI gate with:
+  1. `npm ci`
+  2. `npm run build`
+  3. `npx wrangler pages deploy dist --dry-run`
+  4. `/api/health`, `/api/db/health`, and key mutation smoke tests (listings.create, appraisal.create with image, blockchain.certify).
