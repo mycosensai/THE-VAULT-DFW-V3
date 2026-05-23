@@ -14,26 +14,15 @@ export default function CryptoCheckout() {
 
   const { data: listing, isLoading } = trpc.listings.getById.useQuery({ id: listingId })
 
-  const createCoinbaseCharge = trpc.coinbase.createCharge.useMutation({
-    onSuccess: (data) => {
-      if (data.hostedUrl) {
-        window.location.href = data.hostedUrl
-      }
-      setIsProcessing(false)
-    },
-    onError: () => {
-      setIsProcessing(false)
-    },
-  })
-
-  const handleCoinbaseCheckout = () => {
+  const handleMarketplaceCheckout = (provider: 'opensea' | 'rarible' | 'magiceden') => {
     setIsProcessing(true)
-    const origin = window.location.origin
-    createCoinbaseCharge.mutate({
-      listingId,
-      successUrl: `${origin}/browse?coinbase_success=true`,
-      cancelUrl: `${origin}/listing/${listingId}?coinbase_cancelled=true`,
-    })
+    const urls = {
+      opensea: 'https://opensea.io',
+      rarible: 'https://rarible.com',
+      magiceden: 'https://magiceden.io',
+    }
+    window.open(urls[provider], '_blank', 'noopener,noreferrer')
+    setIsProcessing(false)
   }
 
   if (isLoading) {
@@ -85,7 +74,7 @@ export default function CryptoCheckout() {
               <span className="text-[10px] tracking-[2px] text-emerald-400 uppercase font-cinzel font-semibold">Zero Funds Held Policy</span>
             </div>
             <p className="text-[10px] text-[#C8BC98]">
-              The Vault never holds your funds. Crypto payments are processed through Coinbase Commerce and go directly to the seller. We act solely as a marketplace platform.
+              The Vault never holds your funds. Tokenization and settlement use decentralized marketplaces and wallets with direct buyer/seller custody.
             </p>
           </div>
 
@@ -127,45 +116,31 @@ export default function CryptoCheckout() {
             </div>
           </div>
 
-          {/* Coinbase Commerce Checkout */}
+          {/* Decentralized marketplace checkout */}
           <div className="p-6 sm:p-8 border-b border-[#C9A84C]/15">
             <div className="flex items-center gap-3 mb-5">
               <Bitcoin className="w-5 h-5 text-[#C9A84C]" />
               <div>
-                <h3 className="text-[9px] tracking-[4px] uppercase text-[#C9A84C] font-cinzel font-semibold">Coinbase Commerce</h3>
-                <p className="text-[10px] text-[#8A6E2F]">Accepts BTC, ETH, SOL, USDC, DOGE, LTC + more</p>
+                <h3 className="text-[9px] tracking-[4px] uppercase text-[#C9A84C] font-cinzel font-semibold">Decentralized Providers</h3>
+                <p className="text-[10px] text-[#8A6E2F]">OpenSea, Rarible, and Magic Eden for NFT tokenization/liquidity</p>
               </div>
             </div>
 
             <p className="text-[11px] text-[#C8BC98] leading-relaxed mb-5 font-light">
-              You will be redirected to Coinbase Commerce, a secure hosted checkout that accepts
-              all major cryptocurrencies. Pay with any wallet you prefer. The seller receives
-              USD-equivalent payment directly. The Vault never touches your funds.
+              Select a decentralized provider for tokenization and secondary-market distribution.
+              Settlement is wallet-native and non-custodial.
             </p>
-
-            <button
-              onClick={handleCoinbaseCheckout}
-              disabled={isProcessing || listing.status === 'sold'}
-              className="w-full flex items-center justify-center gap-3 py-4 bg-gradient-to-br from-[#C9A84C] to-[#8A6E2F] text-[#080808] font-cinzel text-[11px] tracking-[3px] uppercase font-bold hover:shadow-[0_0_40px_rgba(201,168,76,0.4)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Creating Secure Checkout...
-                </>
-              ) : listing.status === 'sold' ? (
-                'Sold'
-              ) : (
-                <>
-                  <ExternalLink className="w-4 h-4" />
-                  Pay ${total.toLocaleString('en-US', { minimumFractionDigits: 2 })} with Crypto
-                </>
-              )}
-            </button>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {(["opensea", "rarible", "magiceden"] as const).map((provider) => (
+                <button key={provider} onClick={() => handleMarketplaceCheckout(provider)} disabled={isProcessing || listing.status === 'sold'} className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-br from-[#C9A84C] to-[#8A6E2F] text-[#080808] font-cinzel text-[10px] tracking-[2px] uppercase font-bold disabled:opacity-50">
+                  <ExternalLink className="w-3.5 h-3.5" /> {provider}
+                </button>
+              ))}
+            </div>
 
             {/* Supported cryptos */}
             <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
-              {['Bitcoin', 'Ethereum', 'Solana', 'USDC', 'Litecoin', 'Dogecoin'].map((coin) => (
+              {['OpenSea', 'Rarible', 'Magic Eden', 'Ethereum', 'Solana', 'Polygon'].map((coin) => (
                 <span key={coin} className="px-2 py-1 bg-[#1E1E1E] border border-[#C9A84C]/10 text-[9px] text-[#8A6E2F] tracking-[1px]">{coin}</span>
               ))}
             </div>

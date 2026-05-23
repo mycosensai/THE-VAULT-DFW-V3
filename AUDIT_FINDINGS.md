@@ -98,3 +98,69 @@ Implement the production auth foundation:
 4. Add server-side admin/seller enforcement.
 5. Protect all sensitive tRPC/API procedures.
 
+
+## Cloudflare Shipping Audit (2026-05-23)
+
+### Current Ship Decision
+
+**Decision: Not ready to ship to Cloudflare production yet.**
+
+### Blocking Findings
+
+1. **D1 production binding is still a placeholder**
+   - `wrangler.toml` still uses `database_id = "REPLACE_WITH_REAL_D1_DATABASE_ID"`.
+   - Until this is replaced with an actual D1 database ID, production API/database calls will fail.
+
+2. **Build pipeline is not currently reproducible in this environment**
+   - `npm run build` fails because Vite is not installed locally yet.
+   - Attempting `npm ci` fails with `403 Forbidden` when resolving `@clerk/backend`, so dependencies cannot be installed in this environment for verification.
+
+3. **Static + Functions routing looks correctly wired, but unverified end-to-end**
+   - `pages_build_output_dir = "dist"` is set in `wrangler.toml`.
+   - `public/_routes.json` includes `/api/*` for Functions routing.
+   - `functions/[[path]].ts` exposes health/database health and API middleware.
+   - Because dependencies cannot be installed here, full runtime verification (local Pages simulation + production build + integration smoke tests) is still pending.
+
+### Non-Blocking Positives
+
+- Cloudflare compatibility date is set (`2026-05-22`).
+- D1 binding key (`DB`) is present and consumed by function code.
+- Security headers and per-path rate limiting middleware are present in the Functions entrypoint.
+- Stripe webhook signature verification logic exists and enforces a timestamp tolerance.
+
+### Required Before Ship
+
+1. Replace the placeholder `database_id` in `wrangler.toml` with the real production D1 ID.
+2. Ensure package installation succeeds in CI (registry/network/security policy fix), then run:
+   - `npm ci`
+   - `npm run build`
+   - `npx wrangler pages deploy dist --dry-run` (or equivalent preflight)
+3. Run post-deploy smoke checks:
+   - `GET /api/health`
+   - `GET /api/db/health`
+   - Stripe webhook test event with valid signature.
+4. Gate production release on green build + smoke checks in CI.
+
+## Cloudflare Shipping Audit Update (2026-05-23, Pass 2)
+
+### Scope verified in this pass
+- Removed active Coinbase integration from runtime API/router path and frontend checkout flow.
+- Added autonomous trigger wiring for `verify` and `tokenize` on blockchain certification.
+- Added Cloudflare execution-context handoff for `waitUntil` trigger dispatch.
+- Switched appraisal/listing commission lookup to DB tier-based logic.
+- Migrated local auth password hashing from bcrypt to Web Crypto PBKDF2.
+
+### Current status
+- **Pages entrypoint**: using `functions/[[path]].ts`.
+- **Worker duplicate entrypoint**: removed (`worker/index.ts` deleted).
+- **Crypto providers in UI**: OpenSea / Rarible / Magic Eden options are present.
+- **Coinbase active router**: removed from `api/router.ts`.
+- **Coinbase env accessors**: removed from `api/lib/env.ts`.
+
+### Remaining deployment risk in this environment
+- Full build/deploy verification is still blocked by npm registry access errors (403), so `npm ci` and `npm run build` cannot be completed in this runtime.
+- Recommend CI gate with:
+  1. `npm ci`
+  2. `npm run build`
+  3. `npx wrangler pages deploy dist --dry-run`
+  4. `/api/health`, `/api/db/health`, and key mutation smoke tests (listings.create, appraisal.create with image, blockchain.certify).

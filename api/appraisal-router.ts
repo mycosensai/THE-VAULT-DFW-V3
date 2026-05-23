@@ -3,15 +3,9 @@ import { createRouter, publicQuery } from "./middleware";
 import { getDb } from "./queries/connection";
 import { appraisals } from "@db/schema";
 import { eq, desc } from "drizzle-orm";
-import { openaiChat, openaiStructured } from "./lib/openai";
+import { openaiChat, openaiVision } from "./lib/openai";
 import { autoTriggerFromAction } from "./lib/auto-trigger";
-
-function getCommissionRate(value: number): string {
-  if (value >= 10000) return "5.00";
-  if (value >= 7500) return "10.00";
-  if (value >= 1000) return "7.00";
-  return "5.00";
-}
+import { getCommissionRateFromTiers } from "./lib/commission";
 
 /**
  * Build a strict anti-hallucination appraisal prompt.
@@ -77,7 +71,10 @@ export const appraisalRouter = createRouter({
         category: z.string().min(1).max(100),
         condition: z.string().optional(),
         description: z.string().max(2000).optional(),
-        imageUrl: z.string().url().optional(),
+        imageUrl: z.string().optional().refine(
+          (v) => !v || v.startsWith("data:") || /^https?:\/\//.test(v),
+          "Must be a URL or base64 data URI"
+        ),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -106,16 +103,17 @@ export const appraisalRouter = createRouter({
           input.imageUrl
         );
 
-        const response = await openaiChat({
-          model: "gpt-4o",
-          messages: [
-            { role: "system", content: "You are an expert luxury collectible appraiser." },
-            { role: "user", content: prompt },
-          ],
-          temperature: 0.2,
-          max_tokens: 4096,
-        });
-        const text = response.choices[0]?.message?.content ?? "";
+        const text = input.imageUrl
+          ? await openaiVision(input.imageUrl, prompt, "gpt-4o")
+          : (await openaiChat({
+              model: "gpt-4o",
+              messages: [
+                { role: "system", content: "You are an expert luxury collectible appraiser." },
+                { role: "user", content: prompt },
+              ],
+              temperature: 0.2,
+              max_tokens: 4096,
+            })).choices[0]?.message?.content ?? "";
 
         // Parse the AI response
         let analysis: any;
@@ -147,7 +145,7 @@ export const appraisalRouter = createRouter({
         }
 
         const ev = Number(analysis.estimatedValue) || 0;
-        const commissionRate = getCommissionRate(ev);
+        const commissionRate = await getCommissionRateFromTiers(db, ev);
         const commissionEstimate = ev * (parseFloat(commissionRate) / 100);
 
         // Update appraisal with results

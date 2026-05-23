@@ -5,20 +5,18 @@ import { blockchainCerts, listings } from "@db/schema";
 import { eq, desc } from "drizzle-orm";
 import { logAudit, getClientIP } from "./security";
 import { TRPCError } from "@trpc/server";
+import { autoTriggerFromAction } from "./lib/auto-trigger";
 
 const SOL_CHARS = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
 function randomSolAddress(): string {
-  let s = "";
-  for (let i = 0; i < 43; i++) s += SOL_CHARS[Math.floor(Math.random() * 58)];
-  return s;
+  const bytes = crypto.getRandomValues(new Uint8Array(44));
+  return Array.from(bytes).map((b) => SOL_CHARS[b % 58]).join("");
 }
 
 function genHash(listingId: number, ts: number): string {
-  const data = `VAULT-CERT-${listingId}-${ts}-${Math.random().toString(36).slice(2, 10)}`;
-  let hash = 0;
-  for (let i = 0; i < data.length; i++) hash = ((hash << 5) - hash + data.charCodeAt(i)) | 0;
-  return "0x" + Math.abs(hash).toString(16).padStart(64, "0");
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return `0x${Array.from(bytes).map((x) => x.toString(16).padStart(2, "0")).join("")}`;
 }
 
 function genBlockHash(certHash: string): string {
@@ -55,8 +53,9 @@ export const blockchainRouter = createRouter({
       const certHash = genHash(input.listingId, ts);
       const contractAddr = randomSolAddress();
       const blockHash = genBlockHash(certHash);
-      const tokenId = String(Math.floor(Math.random() * 1e6) + 1);
-      const blockNum = Math.floor(Math.random() * 9e8) + 1e8;
+      const r = crypto.getRandomValues(new Uint32Array(2));
+      const tokenId = String((r[0] % 1_000_000) + 1);
+      const blockNum = Number((r[1] % 900_000_000) + 100_000_000);
 
       const result = await db.insert(blockchainCerts).values({
         listingId: input.listingId,
@@ -82,6 +81,9 @@ export const blockchainRouter = createRouter({
         tokenContractAddress: contractAddr,
         certificationId: certId,
       }).where(eq(listings.id, input.listingId));
+
+      autoTriggerFromAction("verify", input.itemName, undefined, listing.price ? Number(listing.price) : undefined, input.listingId);
+      autoTriggerFromAction("tokenize", input.itemName, undefined, listing.price ? Number(listing.price) : undefined, input.listingId);
 
       logAudit({
         ip: getClientIP(ctx.req),
