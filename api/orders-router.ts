@@ -26,7 +26,7 @@ export const ordersRouter = createRouter({
         amount: z.number().positive(),
         commission: z.number().optional(),
         paymentMethod: z
-          .enum(["stripe", "coinbase", "solana_wallet", "other"])
+          .enum(["stripe", "dex", "solana_wallet", "other"])
           .optional(),
         shippingAddress: z.string().optional(),
       })

@@ -3,7 +3,6 @@ import { createRouter, publicQuery } from "./middleware";
 import { getDb } from "./queries/connection";
 import { users } from "@db/schema";
 import { eq } from "drizzle-orm";
-import { hash, compare } from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 import { TRPCError } from "@trpc/server";
 import { validatePasswordStrength, logAudit, getClientIP } from "./security";
@@ -82,7 +81,7 @@ export const localAuthRouter = createRouter({
         });
       }
 
-      const hashedPassword = await hash(input.password, 12);
+      const hashedPassword = await hashPassword(input.password);
       const insertResult = await db.insert(users).values({
         name: input.name,
         email: input.email,
@@ -141,7 +140,7 @@ export const localAuthRouter = createRouter({
         });
       }
 
-      const valid = await compare(input.password, user.password);
+      const valid = await verifyPassword(input.password, user.password);
       if (!valid) {
         logAudit({
           ip: getClientIP(ctx.req),
@@ -194,3 +193,33 @@ export const localAuthRouter = createRouter({
     return user || null;
   }),
 });
+function bytesToBase64(bytes: Uint8Array): string {
+  return btoa(String.fromCharCode(...bytes));
+}
+
+function base64ToBytes(input: string): Uint8Array {
+  const bin = atob(input);
+  return Uint8Array.from(bin, (c) => c.charCodeAt(0));
+}
+
+async function hashPassword(password: string): Promise<string> {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations: 120_000, hash: "SHA-256" }, key, 256);
+  return `pbkdf2$120000$${bytesToBase64(salt)}$${bytesToBase64(new Uint8Array(bits))}`;
+}
+
+async function verifyPassword(password: string, stored: string): Promise<boolean> {
+  const [scheme, iterationStr, saltB64, hashB64] = stored.split("$");
+  if (scheme !== "pbkdf2" || !iterationStr || !saltB64 || !hashB64) return false;
+  const iterations = Number(iterationStr);
+  const salt = base64ToBytes(saltB64);
+  const expected = base64ToBytes(hashB64);
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations, hash: "SHA-256" }, key, expected.length * 8);
+  const actual = new Uint8Array(bits);
+  if (actual.length !== expected.length) return false;
+  let diff = 0;
+  for (let i = 0; i < expected.length; i++) diff |= actual[i] ^ expected[i];
+  return diff === 0;
+}

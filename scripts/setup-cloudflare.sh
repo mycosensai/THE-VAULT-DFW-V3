@@ -48,7 +48,10 @@ fi
 
 echo ""
 echo "📝 Updating wrangler.toml with database ID..."
-sed -i.bak "s/database_id = \"REPLACE_WITH_YOUR_D1_DATABASE_ID\"/database_id = \"$DB_ID\"/g" wrangler.toml
+sed -i.bak \
+  -e "s/database_id = \"REPLACE_WITH_YOUR_D1_DATABASE_ID\"/database_id = \"$DB_ID\"/g" \
+  -e "s/database_id = \"REPLACE_WITH_REAL_D1_DATABASE_ID\"/database_id = \"$DB_ID\"/g" \
+  wrangler.toml
 rm -f wrangler.toml.bak
 echo "✅ Updated wrangler.toml"
 

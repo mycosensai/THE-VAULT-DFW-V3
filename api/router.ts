@@ -10,7 +10,6 @@ import { agentRouter } from "./agent-router";
 import { adminRouter } from "./admin-router";
 import { blockchainRouter } from "./blockchain-router";
 import { cryptoRouter } from "./crypto-router";
-import { coinbaseRouter } from "./coinbase-router";
 import { expertRouter } from "./expert-router";
 import { outreachRouter } from "./outreach-router";
 import { reviewsRouter } from "./reviews-router";
@@ -51,7 +50,6 @@ export const appRouter = createRouter({
   admin: adminRouter,
   blockchain: blockchainRouter,
   crypto: cryptoRouter,
-  coinbase: coinbaseRouter,
   expert: expertRouter,
   outreach: outreachRouter,
   reviews: reviewsRouter,

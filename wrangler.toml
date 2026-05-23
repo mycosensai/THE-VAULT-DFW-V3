@@ -9,7 +9,7 @@ enabled = true
 [[d1_databases]]
 binding = "DB"
 database_name = "thevault"
-database_id = "REPLACE_WITH_REAL_D1_DATABASE_ID"
+database_id = "e6d36014-de05-40da-9f85-c5fd7027d93c"
 
 [vars]
 ENVIRONMENT = "production"
