@@ -4,7 +4,7 @@
   "version": "3.0.0",
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": ">=20"
   },
   "scripts": {
     "dev": "vite",
@@ -100,3 +100,4 @@
     "wrangler": "^4.93.1"
   }
 }
+
