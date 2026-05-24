@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 name = "thevaultprod"
 compatibility_date = "2026-05-22"
 
@@ -5,11 +6,46 @@ pages_build_output_dir = "dist"
 
 [observability.logs]
 enabled = true
+=======
+<<<<<<< Updated upstream
+name = "thevaultfinal"
+compatibility_date = "2025-04-01"
+usage_model = "standard"
+>>>>>>> Stashed changes
 
 [[d1_databases]]
 binding = "DB"
 database_name = "thevault-db"
 database_id = "375949ce-7c7d-4822-8235-461446769258"
+=======
+<<<<<<< Updated upstream
+name = "the-vault-dfw-v3"
+compatibility_date = "2026-05-22"
+
+=======
+name = "thevault"
+compatibility_date = "2025-04-01"
+compatibility_flags = []
+>>>>>>> Stashed changes
+pages_build_output_dir = "dist"
+
+[observability.logs]
+enabled = true
+
+[[d1_databases]]
+binding = "DB"
+<<<<<<< Updated upstream
+database_name = "thevault"
+<<<<<<< Updated upstream
+database_id = "e6d36014-de05-40da-9f85-c5fd7027d93c"
+=======
+database_id = "REPLACE_WITH_REAL_D1_DATABASE_ID"
+=======
+database_name = "thevault-d
+database_id = "e6d36014-de05-40da-9f85-c5fd7027d93c"
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
 
 [vars]
 ENVIRONMENT = "production"
