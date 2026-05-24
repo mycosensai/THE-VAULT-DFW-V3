@@ -127,6 +127,9 @@ export default function AgentCommand() {
     onSuccess: () => utils.graphWorkflow.engineStats.invalidate()
   });
   const difyCommand = trpc.graphWorkflow.command.useMutation();
+  const auditFleetHallucinations = trpc.samson.auditFleetHallucinations.useMutation({
+    onSuccess: (data) => setAuditResult(data),
+  });
 
   const [activeTab, setActiveTab] = useState<"status" | "control" | "prompt" | "boundaries" | "audit" | "partners" | "workflows" | "research" | "agentchat" | "outreach" | "commands" | "selfaudit" | "police" | "accounting" | "dailyreport" | "override" | "dify">("status");
   const [selectedProject, setSelectedProject] = useState<string>("__none__");
@@ -1243,10 +1246,56 @@ export default function AgentCommand() {
                 <QuickActionButton icon={<Activity className="w-4 h-4" />} label="Fleet Status" onClick={() => { setAdminPromptText("FLEET OVERVIEW"); }} />
                 <QuickActionButton icon={<UserCheck className="w-4 h-4" />} label="Police Sweep" onClick={() => { setAdminPromptText("Run police sweep on all agents"); }} />
                 <QuickActionButton icon={<BarChart3 className="w-4 h-4" />} label="Hallucination Test" onClick={() => { setAdminPromptText("AUDIT HALLUCINATION"); }} />
+                <QuickActionButton
+                  icon={<Eye className="w-4 h-4" />}
+                  label="Scan Recent Cycles"
+                  onClick={() => {
+                    setAuditLoading(true);
+                    auditFleetHallucinations.mutate(
+                      { perAgent: 10 },
+                      { onSettled: () => setAuditLoading(false) },
+                    );
+                  }}
+                />
                 <QuickActionButton icon={<FileText className="w-4 h-4" />} label="Daily Report" onClick={() => { setAdminPromptText("Generate daily report"); }} />
                 <QuickActionButton icon={<Globe className="w-4 h-4" />} label="Research Item" onClick={() => { setAdminPromptText("RESEARCH START [item]"); }} />
               </div>
             </div>
+
+            {auditLoading && (
+              <div className="bg-[#161616] border border-[#C9A84C]/15 p-4 text-[10px] text-[#C8BC98] flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin text-[#C9A84C]" /> Scanning recent agent cycles...
+              </div>
+            )}
+
+            {auditResult?.results && (
+              <div className="bg-[#161616] border border-[#C9A84C]/15 p-6">
+                <h3 className="font-cinzel text-xs tracking-[3px] text-[#C9A84C] uppercase mb-4">Fleet Hallucination Scan</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                  <QuickStat label="Cycles Scanned" value={auditResult.totals?.cyclesScanned ?? 0} />
+                  <QuickStat label="Flagged Cycles" value={auditResult.totals?.hallucinationCycles ?? 0} color="text-amber-400" />
+                  <QuickStat label="Flagged Claims" value={auditResult.totals?.hallucinationClaims ?? 0} color="text-red-400" />
+                  <QuickStat label="Per Agent" value={auditResult.perAgent ?? 0} />
+                </div>
+                <div className="space-y-2">
+                  {auditResult.results.map((r: any) => (
+                    <div key={r.projectId} className="p-3 bg-[#1E1E1E] border border-[#C9A84C]/10">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-[#F5EED8] font-bold capitalize">{r.projectId}</span>
+                        <span className="text-[9px] tracking-[2px] uppercase text-[#8A6E2F]">
+                          risk: {r.risk} · {r.hallucinationClaims} claim(s)
+                        </span>
+                      </div>
+                      {r.sample?.length > 0 && (
+                        <div className="mt-2 text-[10px] text-[#C8BC98]">
+                          Sample: {r.sample[0]?.notes?.[0] ?? "flagged output"}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {pendingPrompts && pendingPrompts.length > 0 && (
               <div className="bg-[#161616] border border-amber-500/20 p-6">

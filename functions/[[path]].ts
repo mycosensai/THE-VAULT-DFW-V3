@@ -12,6 +12,7 @@ import { setDb } from "../api/queries/connection";
 import { setCloudflareEnv } from "../api/lib/env";
 import { checkRateLimit, getSecurityHeaders, getCorsConfig } from "../api/security";
 
+<<<<<<< Updated upstream
 type Env = Record<string, unknown> & {
   DB?: D1Database;
   thevault?: D1Database;
@@ -114,10 +115,32 @@ async function verifyStripeSignature(rawBody: string, signatureHeader: string, s
   const matched = signatures.some((sig) => timingSafeEqual(expectedBytes, hexToBytes(sig)));
 
   return matched ? { ok: true } : { ok: false, error: "Stripe signature verification failed" };
+=======
+export interface Env {
+  DB: D1Database;
+  APP_SECRET: string;
+  STRIPE_SECRET_KEY: string;
+  VAULT_DOMAIN: string;
+  KIMI_AUTH_URL: string;
+  KIMI_CLIENT_ID: string;
+  KIMI_OPEN_URL: string;
+  STRIPE_PUBLISHABLE_KEY: string;
+  GOOGLE_CLIENT_ID: string;
+  GOOGLE_CLIENT_SECRET: string;
+  X_CLIENT_ID: string;
+  X_CLIENT_SECRET: string;
+  GITHUB_CLIENT_ID: string;
+  GITHUB_CLIENT_SECRET: string;
+  WEBHOOK_SECRET: string;
+>>>>>>> Stashed changes
 }
 
 const app = new Hono<{ Bindings: Env }>();
 
+<<<<<<< Updated upstream
+=======
+// ─── Env init ───
+>>>>>>> Stashed changes
 app.use(async (c, next) => {
   setCloudflareEnv(c.env as unknown as Record<string, unknown>);
   (globalThis as any).__cfExecCtx = c.executionCtx;
@@ -139,9 +162,12 @@ app.use(async (c, next) => {
 });
 
 app.use("/api/*", cors(getCorsConfig()));
+
+// ─── Trailing slash ───
 app.use(trimTrailingSlash());
 
 app.use("/api/*", async (c, next) => {
+<<<<<<< Updated upstream
   if (c.req.path === "/api/stripe/webhook") {
     await next();
     return;
@@ -155,9 +181,17 @@ app.use("/api/*", async (c, next) => {
     c.req.path.includes("oauth.callback");
 
   const config = isAuth ? { maxRequests: 5, windowMs: 60_000 } : undefined;
+=======
+  const isAuth = c.req.path.includes("localAuth.login") ||
+    c.req.path.includes("localAuth.register") ||
+    c.req.path.includes("oauth.initiate") ||
+    c.req.path.includes("oauth.callback");
+  const config = isAuth ? { maxRequests: 5, windowSeconds: 60 } : undefined;
+>>>>>>> Stashed changes
   const result = checkRateLimit(c.req.raw, config);
 
   if (!result.allowed) {
+<<<<<<< Updated upstream
     return c.json(
       {
         ok: false,
@@ -166,6 +200,9 @@ app.use("/api/*", async (c, next) => {
       },
       429,
     );
+=======
+    return c.json({ error: "Too many requests", retryAfter: result.retryAfter }, 429);
+>>>>>>> Stashed changes
   }
 
   await next();
@@ -173,6 +210,7 @@ app.use("/api/*", async (c, next) => {
 
 app.get("/api/health", (c) =>
   c.json({
+<<<<<<< Updated upstream
     ok: true,
     status: "ok",
     version: "v3.0.0",
@@ -325,6 +363,34 @@ app.all("/api/trpc/*", handleTRPC);
 
 app.all("/api/*", (c) => c.json({ error: "API route not found", path: c.req.path }, 404));
 
+=======
+    status: "ok",
+    version: "v3.0.0",
+    timestamp: new Date().toISOString(),
+  })
+);
+
+// ─── tRPC handler ───
+app.use("/api/trpc/*", async (c) => {
+  try {
+    return await fetchRequestHandler({
+      endpoint: "/api/trpc",
+      req: c.req.raw,
+      router: appRouter,
+      createContext,
+      onError: (opts) => {
+        console.error(`[tRPC] ${opts.error.code} | ${opts.path} | ${opts.error.message}`);
+      },
+    });
+  } catch (err: any) {
+    console.error("[tRPC Handler Error]", err?.message || err);
+    return c.json({ error: "Internal server error", detail: err?.message || "Unknown error" }, 500);
+  }
+});
+
+// Cloudflare Pages onRequest receives a context object
+// We wrap it to pass (request, env, executionCtx) to Hono
+>>>>>>> Stashed changes
 export const onRequest = async (context: any) => {
   return app.fetch(context.request, context.env, context);
 };

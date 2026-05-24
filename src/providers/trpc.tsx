@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 
 export const trpc = createTRPCReact<AppRouter>();
 
+<<<<<<< Updated upstream
 function getStoredAuthToken() {
   try {
     const sessionToken = sessionStorage.getItem("local_auth_token");
@@ -41,12 +42,16 @@ const queryClient = new QueryClient({
   },
 });
 
+=======
+const queryClient = new QueryClient();
+>>>>>>> Stashed changes
 const trpcClient = trpc.createClient({
   links: [
     httpBatchLink({
       url: "/api/trpc",
       transformer: superjson,
       headers() {
+<<<<<<< Updated upstream
         const token = getStoredAuthToken();
 
         let sessionId: string | null = null;
@@ -95,6 +100,20 @@ const trpcClient = trpc.createClient({
           console.error("TRPC network request failed", err);
           throw err;
         }
+=======
+        const token = localStorage.getItem("local_auth_token");
+        const sessionId = localStorage.getItem("vault_session_id");
+        const headers: Record<string, string> = {};
+        if (token) headers["x-local-auth-token"] = token;
+        if (sessionId) headers["x-session-id"] = sessionId;
+        return headers;
+      },
+      fetch(input, init) {
+        return globalThis.fetch(input, {
+          ...(init ?? {}),
+          credentials: "include",
+        });
+>>>>>>> Stashed changes
       },
     }),
   ],

@@ -1,9 +1,10 @@
 import { useParams, Link } from 'react-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { trpc } from '@/providers/trpc'
+import { openVaultWallet, openVaultWalletSend, subscribeVaultWallet, type VaultWalletState } from '@/lib/walletconnect'
 import {
   Diamond, ArrowLeft, Loader2, AlertCircle,
-  Bitcoin, ShieldCheck, Wallet
+  Bitcoin, ShieldCheck, Wallet, ExternalLink
 } from 'lucide-react'
 import { FooterDisclaimer } from '@/components/LiabilityDisclaimer'
 
@@ -12,137 +13,82 @@ export default function WalletPay() {
   const listingId = parseInt(id || '0')
   const [walletAddress, setWalletAddress] = useState('')
   const [paymentCreated, setPaymentCreated] = useState(false)
+  const [walletState, setWalletState] = useState<VaultWalletState>({ address: '', isConnected: false })
+  const [walletLoading, setWalletLoading] = useState(false)
+  const [walletError, setWalletError] = useState('')
 
   const { data: listing, isLoading } = trpc.listings.getById.useQuery({ id: listingId })
   const { data: rate } = trpc.crypto.getRate.useQuery()
 
-<<<<<<< Updated upstream
-  const createPayment = trpc.crypto.createPayment.useMutation({
-    onSuccess: () => setPaymentCreated(true)
-  })
-
-  const submitTx = trpc.crypto.submitTx.useMutation()
-
-=======
   const createPayment = trpc.crypto.createPayment.useMutation({ onSuccess: () => setPaymentCreated(true) })
   const submitTx = trpc.crypto.submitTx.useMutation()
->>>>>>> Stashed changes
   const [txHash, setTxHash] = useState('')
 
-  const handleCreatePayment = () => {
-    if (walletAddress.length < 32) return
-<<<<<<< Updated upstream
+  useEffect(() => {
+    let unsubscribe: (() => void) | undefined
+    let mounted = true
 
-    createPayment.mutate({
-      listingId,
-      buyerAddress: walletAddress,
-      currency: 'SOL'
+    subscribeVaultWallet((state) => {
+      if (!mounted) return
+      setWalletState(state)
+      if (state.address) setWalletAddress((current) => current || state.address)
     })
-=======
-    createPayment.mutate({ listingId, buyerAddress: walletAddress, currency: 'SOL' })
->>>>>>> Stashed changes
+      .then((cleanup) => {
+        unsubscribe = cleanup
+      })
+      .catch(() => {
+        if (mounted) setWalletError('WalletConnect could not initialize. Check your Reown project configuration.')
+      })
+
+    return () => {
+      mounted = false
+      unsubscribe?.()
+    }
+  }, [])
+
+  const handleConnectWallet = async () => {
+    setWalletLoading(true)
+    setWalletError('')
+    try {
+      const state = await openVaultWallet('solana')
+      setWalletState(state)
+      if (state.address) setWalletAddress(state.address)
+    } catch (error) {
+      setWalletError(error instanceof Error ? error.message : 'Wallet connection failed')
+    } finally {
+      setWalletLoading(false)
+    }
+  }
+
+  const handleCreatePayment = () => {
+    const buyerAddress = walletAddress || walletState.address
+    if (buyerAddress.length < 32) return
+    createPayment.mutate({ listingId, buyerAddress, currency: 'SOL' })
   }
 
   const handleSubmitTx = () => {
     if (!txHash || txHash.length < 43) return
-<<<<<<< Updated upstream
-
-    submitTx.mutate({
-      paymentId: createPayment.data?.paymentId || 0,
-      txHash
-    })
-  }
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen pt-32 flex justify-center">
-        <Loader2 className="w-8 h-8 text-[#C9A84C] animate-spin" />
-      </div>
-    )
-  }
-=======
     submitTx.mutate({ paymentId: createPayment.data?.paymentId || 0, txHash })
   }
 
   if (isLoading) return <div className="min-h-screen pt-32 flex justify-center"><Loader2 className="w-8 h-8 text-[#C9A84C] animate-spin" /></div>
->>>>>>> Stashed changes
 
   if (!listing) {
     return (
       <div className="min-h-screen pt-32 px-4 text-center">
         <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-<<<<<<< Updated upstream
-
-        <h2 className="font-cinzel text-lg text-[#C8BC98] tracking-[3px] uppercase mb-2">
-          Listing Not Found
-        </h2>
-
-        <Link
-          to="/browse"
-          className="text-[#C9A84C] text-xs tracking-[2px] uppercase hover:underline"
-        >
-          Back to Browse
-        </Link>
-=======
         <h2 className="font-cinzel text-lg text-[#C8BC98] tracking-[3px] uppercase mb-2">Listing Not Found</h2>
         <Link to="/browse" className="text-[#C9A84C] text-xs tracking-[2px] uppercase hover:underline">Back to Browse</Link>
->>>>>>> Stashed changes
       </div>
     )
   }
 
-<<<<<<< Updated upstream
-  // ===== SAFE NULL-CHECK FIX =====
-  const solPrice =
-  rate?.solUsd != null
-    ? (Number(listing.price) / rate.solUsd).toFixed(6)
-    : '...'
-  // ===============================
-
-=======
   const solPrice = rate ? (Number(listing.price) / rate.solUsd).toFixed(6) : '...'
->>>>>>> Stashed changes
   const paymentData = createPayment.data
 
   return (
     <div className="min-h-screen pt-24 pb-16 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl mx-auto">
-<<<<<<< Updated upstream
-
-        <Link
-          to={`/crypto-checkout/${listingId}`}
-          className="inline-flex items-center gap-2 text-[10px] tracking-[3px] uppercase text-[#C8BC98] hover:text-[#C9A84C] transition-colors mb-8"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          Back
-        </Link>
-
-        <div className="text-center mb-10">
-          <p className="text-[9px] tracking-[5px] uppercase text-[#C9A84C] font-medium mb-3">
-            Direct Wallet Transfer
-          </p>
-
-          <h1 className="font-cinzel text-2xl sm:text-3xl font-bold text-[#F5EED8] tracking-[4px]">
-            Pay with Solana
-          </h1>
-
-          <div className="flex items-center justify-center gap-3 mt-4">
-            <div className="w-12 h-px bg-gradient-to-r from-transparent to-[#C9A84C]" />
-
-            <Diamond className="w-1.5 h-1.5 text-[#C9A84C] rotate-45" />
-
-            <div className="w-12 h-px bg-gradient-to-l from-transparent to-[#C9A84C]" />
-          </div>
-
-          <p className="font-cormorant italic text-sm text-[#C8BC98] mt-4">
-            Send SOL directly from your Phantom, Soul, or Robinhood wallet.
-            Wallet-to-wallet only.
-          </p>
-        </div>
-
-        {/* KEEP REST OF FILE EXACTLY AS YOU ALREADY HAVE IT */}
-
-=======
         <Link to={`/crypto-checkout/${listingId}`} className="inline-flex items-center gap-2 text-[10px] tracking-[3px] uppercase text-[#C8BC98] hover:text-[#C9A84C] transition-colors mb-8">
           <ArrowLeft className="w-3.5 h-3.5" /> Back
         </Link>
@@ -156,7 +102,7 @@ export default function WalletPay() {
             <div className="w-12 h-px bg-gradient-to-l from-transparent to-[#C9A84C]" />
           </div>
           <p className="font-cormorant italic text-sm text-[#C8BC98] mt-4">
-            Send SOL directly from your Phantom, Soul, or Robinhood wallet. Wallet-to-wallet only.
+            Connect with WalletConnect or paste a Solana wallet address. Wallet-to-wallet only.
           </p>
         </div>
 
@@ -199,11 +145,42 @@ export default function WalletPay() {
             </div>
           </div>
 
+          {/* WalletConnect */}
+          <div className="p-6 sm:p-8 border-b border-[#C9A84C]/15">
+            <div className="flex items-center gap-3 mb-4">
+              <Wallet className="w-4 h-4 text-[#C9A84C]" />
+              <div>
+                <h3 className="text-[9px] tracking-[4px] uppercase text-[#C9A84C] font-cinzel font-semibold">WalletConnect</h3>
+                <p className="text-[10px] text-[#8A6E2F]">Powered by Reown AppKit for Solana wallets</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-center">
+              <div className="min-w-0 p-3 bg-[#1E1E1E] border border-[#C9A84C]/15">
+                <p className="text-[9px] tracking-[2px] uppercase text-[#8A6E2F] mb-1">
+                  {walletState.isConnected ? 'Connected Wallet' : 'No Wallet Connected'}
+                </p>
+                <p className="font-mono text-[10px] text-[#C8BC98] truncate">
+                  {walletState.address || 'Connect Phantom, Backpack, Solflare, or another WalletConnect wallet'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleConnectWallet}
+                disabled={walletLoading}
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 border border-[#C9A84C] text-[#C9A84C] font-cinzel text-[10px] tracking-[2px] uppercase font-semibold hover:bg-[#C9A84C]/8 disabled:opacity-50 transition-all"
+              >
+                {walletLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wallet className="w-4 h-4" />}
+                {walletState.isConnected ? 'Switch Wallet' : 'Connect'}
+              </button>
+            </div>
+            {walletError && <p className="text-red-400 text-xs mt-3">{walletError}</p>}
+          </div>
+
           {/* Wallet Input */}
           {!paymentCreated ? (
             <div className="p-6 sm:p-8 border-b border-[#C9A84C]/15">
               <h3 className="text-[9px] tracking-[4px] uppercase text-[#C9A84C] mb-4 font-cinzel font-semibold">Your Wallet Address</h3>
-              <p className="text-[10px] text-[#8A6E2F] mb-3">Phantom, Soul, or Robinhood wallet</p>
+              <p className="text-[10px] text-[#8A6E2F] mb-3">WalletConnect fills this automatically, or you can paste a Solana address.</p>
               <div className="flex gap-2">
                 <input type="text" value={walletAddress} onChange={(e) => setWalletAddress(e.target.value)} placeholder="Solana address..."
                   className="flex-1 bg-[#1E1E1E] border border-[#C9A84C]/20 text-[#F5EED8] text-sm py-3 px-4 outline-none focus:border-[#C9A84C] font-mono placeholder:text-[#8A6E2F] placeholder:font-sans text-xs" />
@@ -231,6 +208,14 @@ export default function WalletPay() {
                   Send exactly {paymentData?.amount} SOL directly to the seller&apos;s wallet. This is a wallet-to-wallet transfer. The Vault never touches your funds.
                 </p>
               </div>
+              <button
+                type="button"
+                onClick={() => openVaultWalletSend().catch(() => setWalletError('Wallet send could not be opened.'))}
+                className="mb-4 w-full flex items-center justify-center gap-2 py-3 border border-[#C9A84C]/30 text-[#C9A84C] font-cinzel text-[10px] tracking-[3px] uppercase font-semibold hover:bg-[#C9A84C]/8 transition-all"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Open Wallet Send
+              </button>
               {/* Transaction Hash Input */}
               <div className="mb-4">
                 <label className="text-[9px] tracking-[3px] uppercase text-[#C9A84C] mb-2 block font-cinzel">Transaction Signature</label>
@@ -265,7 +250,6 @@ export default function WalletPay() {
         </div>
 
         <FooterDisclaimer />
->>>>>>> Stashed changes
       </div>
     </div>
   )

@@ -115,15 +115,6 @@ export default function ListingDetail() {
               {listing.description}
             </p>
 
-            {listing.sellerHandle && (
-              <Link
-                to={`/seller/${listing.sellerHandle}`}
-                className="inline-flex items-center gap-2 mb-6 text-[10px] tracking-[2px] uppercase text-[#C9A84C] hover:text-[#E8CB7A]"
-              >
-                View Seller Storefront <ExternalLink className="w-3.5 h-3.5" />
-              </Link>
-            )}
-
             {/* Blockchain Certification Section */}
             {listing.isCertified && cert && (
               <div className="mb-6 p-4 bg-emerald-500/5 border border-emerald-500/20">
@@ -211,7 +202,7 @@ export default function ListingDetail() {
                   onClick={handleCryptoBuy}
                   className="w-full flex items-center justify-center gap-2 px-8 py-4 border border-[#C9A84C] text-[#C9A84C] font-cinzel text-[11px] tracking-[3px] uppercase font-semibold hover:bg-[#C9A84C]/8 transition-all"
                 >
-                  <Bitcoin className="w-4 h-4" /> Pay with Crypto (ETH)
+                  <Bitcoin className="w-4 h-4" /> Pay with Crypto
                 </button>
               )}
             </div>

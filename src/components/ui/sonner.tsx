@@ -4,6 +4,7 @@ import {
   Loader2Icon,
   OctagonXIcon,
   TriangleAlertIcon,
+<<<<<<< Updated upstream
 } from "lucide-react";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 
@@ -11,6 +12,18 @@ const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
       theme="dark"
+=======
+} from "lucide-react"
+import { useTheme } from "next-themes"
+import { Toaster as Sonner, type ToasterProps } from "sonner"
+
+const Toaster = ({ ...props }: ToasterProps) => {
+  const { theme = "system" } = useTheme()
+
+  return (
+    <Sonner
+      theme={theme as ToasterProps["theme"]}
+>>>>>>> Stashed changes
       className="toaster group"
       icons={{
         success: <CircleCheckIcon className="size-4" />,
@@ -29,7 +42,14 @@ const Toaster = ({ ...props }: ToasterProps) => {
       }
       {...props}
     />
+<<<<<<< Updated upstream
   );
 };
 
 export { Toaster };
+=======
+  )
+}
+
+export { Toaster }
+>>>>>>> Stashed changes
