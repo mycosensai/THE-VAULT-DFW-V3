@@ -1,16 +1,1 @@
-name = "thevaultfinal"
-compatibility_date = "2025-04-01"
-usage_model = "standard"
 
-[[d1_databases]]
-binding = "DB"
-database_name = "thevault-db"
-database_id = "375949ce-7c7d-4822-8235-461446769258"
-
-# Secret bindings (set via `wrangler secret put` or dashboard — NOT stored in wrangler.toml)
-# APP_SECRET
-# CLERK_API_URL
-# CLERK_JWKS_PUBLIC_KEY
-# CLERK_JWKS_URL
-# CLERK_PUBLISHABLE_KEY
-#
