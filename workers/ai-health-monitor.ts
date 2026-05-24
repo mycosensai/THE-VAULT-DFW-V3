@@ -1,5 +1,6 @@
 export interface Env {
   AI: any
+  HEALTH_MONITOR_KV?: KVNamespace
 }
 
 const WATCH_PATTERNS = [
@@ -11,6 +12,8 @@ const WATCH_PATTERNS = [
   'Module not found',
   'Cloudflare deployment failed'
 ]
+
+const ONE_HOUR = 60 * 60 * 1000
 
 async function analyzeIssue(env: Env, payload: string) {
   const response = await env.AI.run(
@@ -37,6 +40,33 @@ async function analyzeIssue(env: Env, payload: string) {
   return response
 }
 
+async function canRun(env: Env) {
+  if (!env.HEALTH_MONITOR_KV) {
+    return true
+  }
+
+  const lastRun = await env.HEALTH_MONITOR_KV.get('last-health-check')
+
+  if (!lastRun) {
+    return true
+  }
+
+  const diff = Date.now() - Number(lastRun)
+
+  return diff >= ONE_HOUR
+}
+
+async function markRun(env: Env) {
+  if (!env.HEALTH_MONITOR_KV) {
+    return
+  }
+
+  await env.HEALTH_MONITOR_KV.put(
+    'last-health-check',
+    String(Date.now())
+  )
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     try {
@@ -53,10 +83,22 @@ export default {
         })
       }
 
+      const allowed = await canRun(env)
+
+      if (!allowed) {
+        return Response.json({
+          status: 'throttled',
+          cadence: '1h'
+        })
+      }
+
       const diagnostics = await analyzeIssue(env, body)
+
+      await markRun(env)
 
       return Response.json({
         status: 'issue-detected',
+        cadence: '1h',
         diagnostics
       })
     } catch (error: any) {
