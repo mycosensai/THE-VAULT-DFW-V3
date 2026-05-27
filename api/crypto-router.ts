@@ -6,14 +6,34 @@ import { eq, desc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { logAudit, getClientIP } from "./security";
 import { env } from "./lib/env";
+import { PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
 
-const LAMPORTS_PER_SOL = 1_000_000_000;
+// ─── Constants ───
+const LAMPORTS_PER_SOL_BN = BigInt(LAMPORTS_PER_SOL);
 const SOLANA_MAINNET_RPC = "https://api.mainnet-beta.solana.com";
 const SOL_SIGNATURE_RE = /^[1-9A-HJ-NP-Za-km-z]{43,88}$/;
 const SOL_ADDRESS_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
-const DIRECT_CRYPTO_DISABLED_MESSAGE =
-  "Direct Solana payments require SOLANA_RECEIVER_ADDRESS and SOLANA_RPC_URL to be configured before use.";
 
+// USDC mint address on Solana mainnet
+const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+
+// Supported currencies with their configurations
+type SupportedCurrency = "SOL" | "USDC";
+
+interface CurrencyConfig {
+  symbol: string;
+  name: string;
+  decimals: number;
+  isToken: boolean;
+  mintAddress?: string;
+}
+
+const CURRENCY_CONFIGS: Record<SupportedCurrency, CurrencyConfig> = {
+  SOL: { symbol: "SOL", name: "Solana", decimals: 9, isToken: false },
+  USDC: { symbol: "USDC", name: "USD Coin", decimals: 6, isToken: true, mintAddress: USDC_MINT },
+};
+
+// ─── RPC Types ───
 type RpcResponse<T> = {
   jsonrpc: "2.0";
   result?: T;
@@ -22,19 +42,13 @@ type RpcResponse<T> = {
 
 type ParsedInstruction = {
   program?: string;
-  parsed?: {
-    type?: string;
-    info?: Record<string, unknown>;
-  };
+  parsed?: { type?: string; info?: Record<string, unknown> };
 };
 
 type ParsedSolanaTransaction = {
   slot?: number;
   blockTime?: number | null;
-  meta?: {
-    err?: unknown;
-    fee?: number;
-  } | null;
+  meta?: { err?: unknown; fee?: number; preTokenBalances?: unknown[]; postTokenBalances?: unknown[] } | null;
   transaction?: {
     message?: {
       accountKeys?: Array<{ pubkey?: string; signer?: boolean; writable?: boolean }>;
@@ -43,44 +57,62 @@ type ParsedSolanaTransaction = {
   };
 };
 
+// ─── Treasury Wallet Management ───
 function getRuntimeValue(name: string): string {
   const runtimeEnv = env as unknown as Record<string, string>;
-  if (name === "SOLANA_RECEIVER_ADDRESS") return runtimeEnv.solanaReceiverAddress || "";
-  if (name === "TREASURY_WALLET") return runtimeEnv.treasuryWallet || "";
-  if (name === "SOLANA_RPC_URL") return runtimeEnv.solanaRpcUrl || "";
-  if (name === "SOL_USD_RATE") return runtimeEnv.solUsdRate || "";
-  return "";
+  const mapping: Record<string, string> = {
+    SOLANA_TREASURY: runtimeEnv.solanaTreasury || "",
+    TREASURY_WALLET: runtimeEnv.treasuryWallet || "",
+    SOLANA_RPC_URL: runtimeEnv.solanaRpcUrl || "",
+    SOL_USD_RATE: runtimeEnv.solUsdRate || "",
+    USDC_USD_RATE: runtimeEnv.usdcUsdRate || "1.00",
+  };
+  return mapping[name] || "";
 }
 
-function getReceiverAddress(): string {
-  return getRuntimeValue("SOLANA_RECEIVER_ADDRESS") || getRuntimeValue("TREASURY_WALLET");
+function getTreasuryAddress(): string {
+  return getRuntimeValue("SOLANA_TREASURY") || getRuntimeValue("TREASURY_WALLET");
 }
 
 function getRpcUrl(): string {
   return getRuntimeValue("SOLANA_RPC_URL") || SOLANA_MAINNET_RPC;
 }
 
-function getSolUsdRate(): number {
-  const configured = Number(getRuntimeValue("SOL_USD_RATE"));
-  return Number.isFinite(configured) && configured > 0 ? configured : 0;
+function getTokenRate(currency: SupportedCurrency): number {
+  switch (currency) {
+    case "SOL": {
+      const configured = Number(getRuntimeValue("SOL_USD_RATE"));
+      return Number.isFinite(configured) && configured > 0 ? configured : 0;
+    }
+    case "USDC": {
+      const configured = Number(getRuntimeValue("USDC_USD_RATE"));
+      return Number.isFinite(configured) && configured > 0 ? configured : 1.0;
+    }
+    default:
+      return 0;
+  }
 }
 
-function assertDirectCryptoConfigured() {
-  const receiver = getReceiverAddress();
-  const rate = getSolUsdRate();
+function assertCryptoConfigured(currency: SupportedCurrency) {
+  const treasury = getTreasuryAddress();
+  const rate = getTokenRate(currency);
 
-  if (!receiver || !SOL_ADDRESS_RE.test(receiver)) {
-    throw new TRPCError({ code: "PRECONDITION_FAILED", message: DIRECT_CRYPTO_DISABLED_MESSAGE });
+  if (!treasury || !SOL_ADDRESS_RE.test(treasury)) {
+    throw new TRPCError({
+      code: "PRECONDITION_FAILED",
+      message: "Crypto payments require SOLANA_TREASURY to be configured with a valid Solana address.",
+    });
   }
 
   if (!rate) {
     throw new TRPCError({
       code: "PRECONDITION_FAILED",
-      message: "Direct Solana payments require SOL_USD_RATE or a live pricing service before use.",
+      message: `${currency} rate not configured. Set ${currency === "USDC" ? "USDC_USD_RATE" : "SOL_USD_RATE"} env var.`,
     });
   }
 }
 
+// ─── RPC Helpers ───
 async function callSolanaRpc<T>(method: string, params: unknown[]): Promise<T> {
   const response = await fetch(getRpcUrl(), {
     method: "POST",
@@ -109,26 +141,54 @@ function readLamports(value: unknown): number {
   return 0;
 }
 
-function hasExpectedSolTransfer(tx: ParsedSolanaTransaction, expectedDestination: string, expectedLamports: number) {
+// ─── Payment Verification ───
+function hasExpectedSolTransfer(
+  tx: ParsedSolanaTransaction,
+  expectedDestination: string,
+  expectedLamports: number
+): boolean {
   const instructions = tx.transaction?.message?.instructions || [];
-
   return instructions.some((instruction) => {
     if (instruction.program !== "system") return false;
     if (instruction.parsed?.type !== "transfer") return false;
-
     const info = instruction.parsed.info || {};
     const destination = String(info.destination || "");
     const lamports = readLamports(info.lamports);
-
     return destination === expectedDestination && lamports >= expectedLamports;
+  });
+}
+
+function hasExpectedTokenTransfer(
+  tx: ParsedSolanaTransaction,
+  expectedDestination: string,
+  expectedMint: string,
+  expectedAmount: number,
+  decimals: number
+): boolean {
+  const instructions = tx.transaction?.message?.instructions || [];
+  return instructions.some((instruction) => {
+    if (instruction.program !== "spl-token") return false;
+    if (instruction.parsed?.type !== "transfer") return false;
+    const info = instruction.parsed.info || {};
+    const destination = String(info.destination || "");
+    const mint = String(info.mint || "");
+    const amount = Number(info.amount || 0);
+    return (
+      destination === expectedDestination &&
+      mint === expectedMint &&
+      amount >= expectedAmount
+    );
   });
 }
 
 async function verifySolanaPayment(input: {
   txHash: string;
   expectedDestination: string;
-  expectedSolAmount: number;
-}) {
+  expectedAmount: number;
+  currency: SupportedCurrency;
+}): Promise<{ valid: boolean; confirmations: number; reason: string }> {
+  const config = CURRENCY_CONFIGS[input.currency];
+
   if (!SOL_SIGNATURE_RE.test(input.txHash)) {
     return { valid: false, confirmations: 0, reason: "Invalid Solana transaction signature format" };
   }
@@ -139,52 +199,62 @@ async function verifySolanaPayment(input: {
 
   const tx = await callSolanaRpc<ParsedSolanaTransaction | null>("getTransaction", [
     input.txHash,
-    {
-      encoding: "jsonParsed",
-      commitment: "finalized",
-      maxSupportedTransactionVersion: 0,
-    },
+    { encoding: "jsonParsed", commitment: "finalized", maxSupportedTransactionVersion: 0 },
   ]);
 
   if (!tx) {
-    return { valid: false, confirmations: 0, reason: "Transaction not found or not finalized" };
+    return { valid: false, confirmations: 0, reason: "Transaction not found or not finalized on Solana" };
   }
 
   if (tx.meta?.err) {
     return { valid: false, confirmations: 0, reason: "Transaction failed on-chain" };
   }
 
-  const expectedLamports = Math.ceil(input.expectedSolAmount * LAMPORTS_PER_SOL);
-  const transferFound = hasExpectedSolTransfer(tx, input.expectedDestination, expectedLamports);
+  let transferFound = false;
+
+  if (config.isToken) {
+    // SPL Token transfer (USDC, etc.)
+    const rawAmount = Math.floor(input.expectedAmount * Math.pow(10, config.decimals));
+    transferFound = hasExpectedTokenTransfer(
+      tx,
+      input.expectedDestination,
+      config.mintAddress!,
+      rawAmount,
+      config.decimals
+    );
+  } else {
+    // Native SOL transfer
+    const expectedLamports = Math.ceil(input.expectedAmount * LAMPORTS_PER_SOL);
+    transferFound = hasExpectedSolTransfer(tx, input.expectedDestination, expectedLamports);
+  }
 
   if (!transferFound) {
     return {
       valid: false,
       confirmations: 0,
-      reason: "No finalized SOL transfer to the expected destination for the required amount was found",
+      reason: `No finalized ${config.symbol} transfer to the treasury wallet was found for the required amount. Verify the transaction on Solscan.`,
     };
   }
 
   return {
     valid: true,
     confirmations: 1,
-    blockNumber: tx.slot,
-    blockTime: tx.blockTime ?? null,
-    reason: "Finalized Solana payment verified by RPC",
+    reason: `Finalized ${config.symbol} payment verified by Solana RPC`,
   };
 }
 
+// ─── Router ───
 export const cryptoRouter = createRouter({
   createPayment: authedQuery
     .input(
       z.object({
         listingId: z.number(),
         buyerAddress: z.string().regex(SOL_ADDRESS_RE, "Invalid Solana wallet address"),
-        currency: z.enum(["SOL"]).default("SOL"),
+        currency: z.enum(["SOL", "USDC"]).default("SOL"),
       })
     )
     .mutation(async ({ input, ctx }) => {
-      assertDirectCryptoConfigured();
+      assertCryptoConfigured(input.currency);
 
       const db = getDb();
       const [listing] = await db.select().from(listings).where(eq(listings.id, input.listingId)).limit(1);
@@ -192,25 +262,30 @@ export const cryptoRouter = createRouter({
       if (!listing) throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found" });
       if (listing.status === "sold") throw new TRPCError({ code: "BAD_REQUEST", message: "Item already sold" });
 
+      const config = CURRENCY_CONFIGS[input.currency];
       const amountUsd = Number(listing.price);
-      const solUsdRate = getSolUsdRate();
-      const amountSol = amountUsd / solUsdRate;
-      const receiver = getReceiverAddress();
+      const tokenRate = getTokenRate(input.currency);
+      const amountToken = amountUsd / tokenRate;
+      const treasury = getTreasuryAddress();
+
+      const decimals = config.decimals;
+      const formattedAmount = amountToken.toFixed(decimals);
 
       const result = await db.insert(cryptoPayments).values({
         listingId: input.listingId,
         buyerAddress: input.buyerAddress,
-        sellerAddress: receiver,
-        amount: amountSol.toFixed(9),
+        sellerAddress: treasury,
+        amount: formattedAmount,
         amountUsd: amountUsd.toFixed(2),
-        currency: "SOL",
-        network: "solana_mainnet",
+        currency: config.symbol,
+        network: `solana_mainnet_${config.symbol.toLowerCase()}`,
         status: "pending",
         confirmations: 0,
         metadata: JSON.stringify({
           listingTitle: listing.title,
-          solUsdRate,
-          receiver,
+          tokenRate,
+          treasury,
+          currencyConfig: config,
           initiatedBy: ctx.user?.id,
         }),
       });
@@ -220,20 +295,24 @@ export const cryptoRouter = createRouter({
         method: "POST",
         path: "crypto.createPayment",
         userId: ctx.user?.id,
-        action: "direct_solana_payment_created",
-        details: `listing:${listing.id} receiver:${receiver}`,
+        action: `crypto_payment_created_${config.symbol.toLowerCase()}`,
+        details: `listing:${listing.id} treasury:${treasury.slice(0, 8)}...`,
       });
 
       return {
         success: true,
         paymentId: Number(result.meta.last_row_id),
-        destinationAddress: receiver,
-        amount: amountSol.toFixed(9),
+        treasuryAddress: treasury,
+        amount: formattedAmount,
         amountUsd: amountUsd.toFixed(2),
-        currency: "SOL",
+        currency: config.symbol,
+        decimals,
         network: "solana_mainnet",
-        solUsdRate,
-        message: `Send exactly ${amountSol.toFixed(9)} SOL to ${receiver}. The item will only be marked paid after finalized RPC verification.`,
+        tokenRate,
+        instructions: config.isToken
+          ? `Send exactly ${formattedAmount} ${config.symbol} (SPL Token) to the treasury wallet. Token mint: ${config.mintAddress}`
+          : `Send exactly ${formattedAmount} ${config.symbol} to the treasury wallet.`,
+        explorerUrl: `https://solscan.io/account/${treasury}`,
       };
     }),
 
@@ -245,8 +324,6 @@ export const cryptoRouter = createRouter({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      assertDirectCryptoConfigured();
-
       const db = getDb();
       const [payment] = await db
         .select()
@@ -259,15 +336,20 @@ export const cryptoRouter = createRouter({
         throw new TRPCError({ code: "BAD_REQUEST", message: "Payment already confirmed" });
       }
       if (payment.txHash && payment.txHash !== input.txHash) {
-        throw new TRPCError({ code: "CONFLICT", message: "A different transaction is already attached to this payment" });
+        throw new TRPCError({ code: "CONFLICT", message: "A different transaction is already attached" });
       }
 
-      const destination = payment.sellerAddress || getReceiverAddress();
+      const destination = payment.sellerAddress || getTreasuryAddress();
       const amount = Number(payment.amount);
+      const currency = (payment.currency as SupportedCurrency) || "SOL";
+
+      assertCryptoConfigured(currency);
+
       const verification = await verifySolanaPayment({
         txHash: input.txHash,
         expectedDestination: destination,
-        expectedSolAmount: amount,
+        expectedAmount: amount,
+        currency,
       });
 
       if (!verification.valid) {
@@ -285,7 +367,6 @@ export const cryptoRouter = createRouter({
           txHash: input.txHash,
           status: "confirmed",
           confirmations: verification.confirmations,
-          blockNumber: verification.blockNumber ?? null,
           metadata: JSON.stringify({
             ...(payment.metadata ? JSON.parse(payment.metadata) : {}),
             verification,
@@ -294,6 +375,7 @@ export const cryptoRouter = createRouter({
         })
         .where(eq(cryptoPayments.id, input.paymentId));
 
+      // Mark listing as sold
       await db.update(listings).set({ status: "sold" }).where(eq(listings.id, payment.listingId));
 
       logAudit({
@@ -301,14 +383,16 @@ export const cryptoRouter = createRouter({
         method: "POST",
         path: "crypto.submitTx",
         userId: ctx.user?.id,
-        action: "direct_solana_payment_verified",
+        action: `crypto_payment_verified_${currency.toLowerCase()}`,
         details: `payment:${input.paymentId} tx:${input.txHash.slice(0, 16)}...`,
       });
 
       return {
         success: true,
         status: "confirmed",
-        message: "Finalized Solana payment verified by RPC and listing marked sold.",
+        currency,
+        message: `Finalized ${currency} payment verified on Solana. Listing marked as sold.`,
+        explorerUrl: `https://solscan.io/tx/${input.txHash}`,
         verification,
       };
     }),
@@ -325,25 +409,29 @@ export const cryptoRouter = createRouter({
       return p || null;
     }),
 
-  getRate: publicQuery.query(() => {
-    const rate = getSolUsdRate();
-    const receiver = getReceiverAddress();
+  getRates: publicQuery.query(() => {
+    const solRate = getTokenRate("SOL");
+    const usdcRate = getTokenRate("USDC");
+    const treasury = getTreasuryAddress();
+    const hasTreasury = Boolean(treasury && SOL_ADDRESS_RE.test(treasury));
+
     return {
-      enabled: Boolean(rate && receiver && SOL_ADDRESS_RE.test(receiver)),
-      solUsd: rate || null,
-      destinationConfigured: Boolean(receiver && SOL_ADDRESS_RE.test(receiver)),
+      enabled: hasTreasury && solRate > 0,
+      treasuryConfigured: hasTreasury,
+      treasuryAddress: hasTreasury ? treasury : null,
+      rates: {
+        SOL: solRate || null,
+        USDC: usdcRate,
+      },
+      supportedCurrencies: ["SOL", "USDC"] as SupportedCurrency[],
       timestamp: Date.now(),
-      message: rate && receiver ? "Direct Solana payment verification is configured." : DIRECT_CRYPTO_DISABLED_MESSAGE,
+      explorerUrl: hasTreasury ? `https://solscan.io/account/${treasury}` : null,
     };
   }),
 
   listByUser: publicQuery
     .input(
-      z
-        .object({
-          address: z.string().optional(),
-        })
-        .optional(),
+      z.object({ address: z.string().optional() }).optional()
     )
     .query(async ({ input }) => {
       const db = getDb();
@@ -355,4 +443,23 @@ export const cryptoRouter = createRouter({
         .orderBy(desc(cryptoPayments.createdAt))
         .limit(50);
     }),
+
+  getTreasuryInfo: publicQuery.query(() => {
+    const treasury = getTreasuryAddress();
+    const hasTreasury = Boolean(treasury && SOL_ADDRESS_RE.test(treasury));
+
+    return {
+      configured: hasTreasury,
+      address: hasTreasury ? treasury : null,
+      network: "solana_mainnet",
+      supportedCurrencies: Object.entries(CURRENCY_CONFIGS).map(([key, config]) => ({
+        symbol: config.symbol,
+        name: config.name,
+        decimals: config.decimals,
+        isToken: config.isToken,
+        mintAddress: config.mintAddress || null,
+      })),
+      explorerUrl: hasTreasury ? `https://solscan.io/account/${treasury}` : null,
+    };
+  }),
 });

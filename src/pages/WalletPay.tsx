@@ -16,7 +16,8 @@ export default function WalletPay() {
   const [walletStatus, setWalletStatus] = useState<{ isConnected: boolean; address: string }>({ isConnected: false, address: '' })
 
   const { data: listing, isLoading } = trpc.listings.getById.useQuery({ id: listingId })
-  const { data: rate } = trpc.crypto.getRate.useQuery()
+  const { data: rates } = trpc.crypto.getRates.useQuery()
+  const [currency, setCurrency] = useState<'SOL' | 'USDC'>('SOL')
 
   const createPayment = trpc.crypto.createPayment.useMutation({
     onSuccess: () => setPaymentCreated(true)
@@ -39,10 +40,10 @@ export default function WalletPay() {
     if (walletAddress.length < 32) return
 
     createPayment.mutate({
-      listingId,
-      buyerAddress: walletAddress,
-      currency: 'SOL'
-    })
+          listingId,
+          buyerAddress: walletAddress,
+          currency
+        })
   }
 
   const handleConnect = async () => {
@@ -91,10 +92,11 @@ export default function WalletPay() {
     )
   }
 
-  const solPrice =
-    rate?.solUsd != null
-      ? (Number(listing.price) / rate.solUsd).toFixed(6)
-      : '...'
+  const rate = currency === 'SOL' ? rates?.rates?.SOL : rates?.rates?.USDC
+    const solPrice = currency === 'SOL'
+      ? (rate ? (Number(listing.price) / rate).toFixed(6) : '...')
+      : (Number(listing.price)).toFixed(2)
+    const currencySymbol = currency
 
   const paymentData = createPayment.data
 
@@ -116,14 +118,31 @@ export default function WalletPay() {
           </p>
 
           <h1 className="font-cinzel text-2xl sm:text-3xl font-bold text-[#F5EED8] tracking-[4px]">
-            Pay with Solana
-          </h1>
+                      Pay with {currencySymbol}
+                    </h1>
 
-          <div className="flex items-center justify-center gap-3 mt-4">
-            <div className="w-12 h-px bg-gradient-to-r from-transparent to-[#C9A84C]" />
-            <Diamond className="w-1.5 h-1.5 text-[#C9A84C] rotate-45" />
-            <div className="w-12 h-px bg-gradient-to-l from-transparent to-[#C9A84C]" />
-          </div>
+                    <div className="flex items-center justify-center gap-3 mt-4">
+                      <div className="w-12 h-px bg-gradient-to-r from-transparent to-[#C9A84C]" />
+                      <Diamond className="w-1.5 h-1.5 text-[#C9A84C] rotate-45" />
+                      <div className="w-12 h-px bg-gradient-to-l from-transparent to-[#C9A84C]" />
+                    </div>
+
+                    {/* Currency Selector */}
+                    <div className="flex justify-center gap-3 mt-4">
+                      {(['SOL', 'USDC'] as const).map((c) => (
+                        <button
+                          key={c}
+                          onClick={() => setCurrency(c)}
+                          className={`px-5 py-2 text-[10px] tracking-[3px] uppercase font-cinzel font-semibold border transition-all ${
+                            currency === c
+                              ? 'border-[#C9A84C] bg-[#C9A84C]/10 text-[#C9A84C]'
+                              : 'border-[#C9A84C]/20 text-[#8A6E2F] hover:border-[#C9A84C]/40'
+                          }`}
+                        >
+                          {c === 'SOL' ? 'SOL' : 'USDC'}
+                        </button>
+                      ))}
+                    </div>
 
           <p className="font-cormorant italic text-sm text-[#C8BC98] mt-4">
             Send SOL directly from your Phantom, Soul, or Robinhood wallet.
@@ -162,10 +181,10 @@ export default function WalletPay() {
           <div className="p-6 sm:p-8 border-b border-[#C9A84C]/15">
             <div className="space-y-3">
               <div className="flex justify-between text-sm"><span className="text-[#C8BC98]">Price (USD)</span><span className="text-[#F5EED8] font-cinzel">${Number(listing.price).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span></div>
-              <div className="flex justify-between text-sm"><span className="text-[#C8BC98]">SOL/USD</span><span className="text-[#C9A84C] font-cinzel">${rate?.solUsd?.toLocaleString() || '...'}</span></div>
-              <div className="flex justify-between text-sm pt-3 border-t border-[#C9A84C]/15">
-                <span className="text-[#F5EED8] font-medium">Send</span>
-                <span className="font-cinzel text-xl font-bold text-[#FFD97A]">{solPrice} SOL</span>
+              <div className="flex justify-between text-sm"><span className="text-[#C8BC98]">{currencySymbol}/USD</span><span className="text-[#C9A84C] font-cinzel">${rate?.toLocaleString() || '...'}</span></div>
+                            <div className="flex justify-between text-sm pt-3 border-t border-[#C9A84C]/15">
+                              <span className="text-[#F5EED8] font-medium">Send</span>
+                              <span className="font-cinzel text-xl font-bold text-[#FFD97A]">{solPrice} {currencySymbol}</span>
               </div>
             </div>
           </div>
