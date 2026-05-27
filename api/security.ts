@@ -187,7 +187,6 @@ function normalizeAllowedHost(value: string): string {
 export function getCorsConfig() {
   return {
     origin: (origin: string): string | null => {
-<<<<<<< Updated upstream
       if (!origin) return null;
 
       let hostname = "";
@@ -208,16 +207,6 @@ export function getCorsConfig() {
         return origin;
       }
 
-=======
-      if (!origin) return "*";
-      if (origin.includes("localhost")) return origin;
-      const allowedDomain = env.vaultDomain;
-      if (!allowedDomain) {
-        // When VAULT_DOMAIN is not set, allow all origins for development
-        return origin || "*";
-      }
-      if (origin.includes(allowedDomain)) return origin;
->>>>>>> Stashed changes
       return null;
     },
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"] as string[],
@@ -228,15 +217,11 @@ export function getCorsConfig() {
       "X-Session-Id",
       "X-Agent-Token",
       "X-Requested-With",
-<<<<<<< Updated upstream
       "Stripe-Signature",
       "X-CC-Webhook-Signature",
       "X-Client-Version",
     ],
     exposeHeaders: ["Retry-After"],
-=======
-    ],
->>>>>>> Stashed changes
     credentials: true,
     maxAge: 86400,
   };

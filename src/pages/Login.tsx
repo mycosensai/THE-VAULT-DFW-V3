@@ -5,10 +5,6 @@ import {
   Diamond, LogIn, Loader2, UserPlus, ArrowLeft, Eye, EyeOff
 } from 'lucide-react'
 
-<<<<<<< Updated upstream
-=======
-// ─── Brand Icons ───
->>>>>>> Stashed changes
 function GoogleIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24">
@@ -36,8 +32,6 @@ function GitHubIcon({ className }: { className?: string }) {
   )
 }
 
-<<<<<<< Updated upstream
-<<<<<<<< Updated upstream:src/pages/Login.tsx
 function persistAuthToken(token: string) {
   try {
     sessionStorage.setItem('local_auth_token', token)
@@ -70,37 +64,19 @@ function cleanAuthError(message: string) {
 
   return message
 }
-========
->>>>>>>> Stashed changes:pages/Login.tsx
 
-=======
-function KimiIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-6H8v6H6V7h2v4h1V7h2v10zm6 0h-2v-4h-1v4h-2V7h2v4h1V7h2v10z" />
-    </svg>
-  )
-}
-
-// ─── Provider Button ───
->>>>>>> Stashed changes
 function ProviderButton({
   label,
   icon,
   onClick,
   disabled,
   pending,
-<<<<<<< Updated upstream
-=======
-  variant = 'outline',
->>>>>>> Stashed changes
 }: {
   label: string
   icon: React.ReactNode
   onClick: () => void
   disabled?: boolean
   pending?: boolean
-<<<<<<< Updated upstream
 }) {
   return (
     <button
@@ -109,19 +85,6 @@ function ProviderButton({
       disabled={disabled || pending}
       className="w-full flex items-center justify-center gap-3 py-3.5 text-xs tracking-[2px] uppercase font-cinzel font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-[#C9A84C]/30 text-[#C9A84C] hover:bg-[#C9A84C]/8"
     >
-=======
-  variant?: 'gold' | 'outline'
-}) {
-  const base =
-    'w-full flex items-center justify-center gap-3 py-3.5 text-xs tracking-[2px] uppercase font-cinzel font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed'
-  const styles =
-    variant === 'gold'
-      ? 'bg-gradient-to-br from-[#C9A84C] to-[#8A6E2F] text-[#080808] hover:shadow-[0_0_40px_rgba(201,168,76,0.4)]'
-      : 'border border-[#C9A84C]/30 text-[#C9A84C] hover:bg-[#C9A84C]/8'
-
-  return (
-    <button onClick={onClick} disabled={disabled || pending} className={`${base} ${styles}`}>
->>>>>>> Stashed changes
       {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : icon}
       {label}
     </button>
@@ -136,7 +99,6 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
 
-<<<<<<< Updated upstream
   const handleAuthSuccess = (token?: string) => {
     if (!token) {
       setError('Authentication completed but no token was returned.')
@@ -167,39 +129,10 @@ export default function Login() {
       setError(data?.error || 'OAuth provider unavailable.')
     },
     onError: (err) => setError(cleanAuthError(err.message)),
-=======
-  const loginMutation = trpc.localAuth.login.useMutation({
-    onSuccess: (data) => {
-      localStorage.setItem('local_auth_token', data.token)
-      window.location.href = '/'
-    },
-    onError: (err) => setError(err.message),
-  })
-
-  const registerMutation = trpc.localAuth.register.useMutation({
-    onSuccess: (data) => {
-      localStorage.setItem('local_auth_token', data.token)
-      window.location.href = '/'
-    },
-    onError: (err) => setError(err.message),
-  })
-
-  // OAuth URL generators
-  const getOAuthUrl = trpc.oauth.getAuthUrl.useMutation({
-    onSuccess: (data) => {
-      if (data.url) {
-        window.location.href = data.url
-      } else if (data.error) {
-        setError(data.error)
-      }
-    },
-    onError: (err) => setError(err.message),
->>>>>>> Stashed changes
   })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-<<<<<<< Updated upstream
 
     if (loginMutation.isPending || registerMutation.isPending) {
       return
@@ -237,53 +170,11 @@ export default function Login() {
     })
   }
 
-<<<<<<<< Updated upstream:src/pages/Login.tsx
-========
-  // Google, X, GitHub OAuth via tRPC
->>>>>>>> Stashed changes:pages/Login.tsx
   const handleProviderOAuth = (provider: 'google' | 'x' | 'github') => {
     if (getOAuthUrl.isPending) {
       return
     }
 
-=======
-    setError('')
-
-    if (mode === 'login') {
-      loginMutation.mutate({ email, password })
-    } else {
-      if (!name || !email || !password) {
-        setError('All fields are required')
-        return
-      }
-      if (password.length < 8) {
-        setError('Password must be at least 8 characters')
-        return
-      }
-      registerMutation.mutate({ name, email, password })
-    }
-  }
-
-  // Kimi OAuth (legacy direct flow)
-  const handleKimiOAuth = () => {
-    const appID = import.meta.env.VITE_APP_ID
-    const authURL = import.meta.env.VITE_KIMI_AUTH_URL
-    const redirectUri = `${window.location.origin}/api/oauth/callback`
-    const state = btoa(redirectUri)
-
-    const url = new URL(`${authURL}/oauth/authorize`)
-    url.searchParams.set('client_id', appID)
-    url.searchParams.set('redirect_uri', redirectUri)
-    url.searchParams.set('response_type', 'code')
-    url.searchParams.set('scope', 'profile')
-    url.searchParams.set('state', state)
-
-    window.location.href = url.toString()
-  }
-
-  // Google, X, GitHub OAuth via tRPC
-  const handleProviderOAuth = (provider: 'google' | 'x' | 'github') => {
->>>>>>> Stashed changes
     setError('')
     getOAuthUrl.mutate({ provider })
   }
@@ -293,10 +184,6 @@ export default function Login() {
   return (
     <div className="min-h-screen pt-24 pb-16 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
       <div className="max-w-md w-full">
-<<<<<<< Updated upstream
-=======
-        {/* Header */}
->>>>>>> Stashed changes
         <div className="text-center mb-10">
           <div className="w-12 h-12 border border-[#C9A84C] rotate-45 flex items-center justify-center mx-auto mb-4">
             <Diamond className="w-5 h-5 text-[#C9A84C] -rotate-45" />
@@ -309,28 +196,12 @@ export default function Login() {
           </p>
         </div>
 
-<<<<<<< Updated upstream
-=======
-        {/* Form Card */}
->>>>>>> Stashed changes
         <div className="bg-[#161616] border border-[#C9A84C]/25 p-8 relative">
           <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-[#C9A84C]" />
           <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-[#C9A84C]" />
 
-<<<<<<< Updated upstream
           <div className="space-y-3 mb-6">
             <ProviderButton
-=======
-          {/* ─── OAuth Providers ─── */}
-          <div className="space-y-3 mb-6">
-            <ProviderButton
-              label="Sign In with Kimi"
-              icon={<KimiIcon className="w-4 h-4" />}
-              onClick={handleKimiOAuth}
-              pending={isPending}
-            />
-            <ProviderButton
->>>>>>> Stashed changes
               label="Sign In with Google"
               icon={<GoogleIcon className="w-4 h-4" />}
               onClick={() => handleProviderOAuth('google')}
@@ -356,10 +227,6 @@ export default function Login() {
             <div className="flex-1 h-px bg-[#C9A84C]/15" />
           </div>
 
-<<<<<<< Updated upstream
-=======
-          {/* Local Auth Form */}
->>>>>>> Stashed changes
           <form onSubmit={handleSubmit} className="space-y-5">
             {mode === 'register' && (
               <div>
@@ -369,10 +236,7 @@ export default function Login() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="John Collector"
-<<<<<<< Updated upstream
                   maxLength={80}
-=======
->>>>>>> Stashed changes
                   className="w-full bg-[#1E1E1E] border border-[#C9A84C]/20 text-[#F5EED8] text-sm py-3 px-4 outline-none focus:border-[#C9A84C] transition-colors placeholder:text-[#8A6E2F]"
                 />
               </div>
@@ -382,10 +246,7 @@ export default function Login() {
               <label className="block text-[9px] tracking-[4px] uppercase text-[#C9A84C] mb-2">Email</label>
               <input
                 type="email"
-<<<<<<< Updated upstream
                 autoComplete="email"
-=======
->>>>>>> Stashed changes
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="collector@vault.com"
@@ -398,10 +259,7 @@ export default function Login() {
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
-<<<<<<< Updated upstream
                   autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-=======
->>>>>>> Stashed changes
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Min 8 characters"
