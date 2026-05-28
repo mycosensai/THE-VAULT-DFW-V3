@@ -9,7 +9,13 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "audit:env": "node -e \"const required=['CLERK_SECRET_KEY','STRIPE_SECRET_KEY']; const missing=required.filter(k=>!process.env[k]); if(missing.length){console.error('Missing env vars:',missing.join(',')); process.exit(1)} console.log('Environment audit passed')\"",
+    "audit:wrangler": "wrangler deploy --dry-run",
+    "audit:build": "npm run check && npm run lint && npm run build"
   },
   "dependencies": {
     "@clerk/backend": "^2.4.0",
