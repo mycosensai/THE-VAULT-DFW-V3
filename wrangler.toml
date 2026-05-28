@@ -1,7 +1,16 @@
 name = "thevaultprod"
 compatibility_date = "2026-05-22"
+compatibility_flags = ["nodejs_compat"]
 
 pages_build_output_dir = "dist"
+
+main = "functions/[[path]].ts"
+
+[observability]
+enabled = true
+
+[placement]
+mode = "smart"
 
 [[d1_databases]]
 binding = "DB"
@@ -11,9 +20,13 @@ database_id = "375949ce-7c7d-4822-8235-461446769258"
 [vars]
 ENVIRONMENT = "production"
 VAULT_DOMAIN = "thevaultdfw.win"
+API_RUNTIME = "cloudflare-pages"
+ENABLE_STRIPE_WEBHOOKS = "true"
+ENABLE_RATE_LIMITING = "true"
+ENABLE_SECURITY_HEADERS = "true"
 
 # ─── Web3 Treasury Configuration ───
 # Set your treasury wallet address (Solana public key)
 # SOLANA_TREASURY = "YOUR_SOLANA_TREASURY_ADDRESS"
-# SOL_USD_RATE = ""  # Set dynamically or leave empty for manual entry
+# SOL_USD_RATE = ""
 # USDC_USD_RATE = "1.00"
