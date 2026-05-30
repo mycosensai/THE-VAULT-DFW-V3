@@ -27,6 +27,6 @@ ENABLE_SECURITY_HEADERS = "true"
 
 # ─── Web3 Treasury Configuration ───
 # Set your treasury wallet address (Solana public key)
-# SOLANA_TREASURY = "YOUR_SOLANA_TREASURY_ADDRESS"
-# SOL_USD_RATE = ""
+# SOLANA_TREASURY = "hd6xBJDfRokQheqb3jTzh7ahQZYVWy8kKKiF9XSN4Rn"
+# SOL_USD_RATE = "true"
 # USDC_USD_RATE = "1.00"
