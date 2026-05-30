@@ -1,4 +1,10 @@
-name = "thevaultfinal"
+[site]
+bucket = "./dist"
+entry-point = "thevault-ui"
+
+[env.production]
+route = "thevaultdfw.win/*"
+zone_id = "35eb69e06e3173eaae44080edcc89184"
 compatibility_date = "2025-04-01"
 usage_model = "standard"
 
@@ -13,4 +19,5 @@ database_id = "375949ce-7c7d-4822-8235-461446769258"
 # CLERK_JWKS_PUBLIC_KEY
 # CLERK_JWKS_URL
 # CLERK_PUBLISHABLE_KEY
-#
+# STRIPE CHECKOUT
+# TREASURY SECRET KEYS
