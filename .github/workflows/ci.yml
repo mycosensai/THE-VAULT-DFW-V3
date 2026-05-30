@@ -1,4 +1,4 @@
-name: CI Build Audit
+name: Production Audit Pipeline
 
 on:
   pull_request:
@@ -23,12 +23,29 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Typecheck
+      - name: Environment audit
+        run: npm run audit:env
+        env:
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+
+      - name: TypeScript validation
         run: npm run check
 
-      - name: Build
+      - name: ESLint validation
+        run: npm run lint
+
+      - name: Vitest runtime checks
+        run: npm run test
+
+      - name: Production build verification
         run: npm run build
 
-      - name: Lint
-        run: npm run lint
-        continue-on-error: true
+      - name: Wrangler deployment dry run
+        run: npm run audit:wrangler
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-build
+          path: dist/

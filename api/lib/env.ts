@@ -22,6 +22,12 @@ interface CloudflareEnv {
   NODE_ENV?: string;
   VAULT_DOMAIN?: string;
   RESEND_API_KEY?: string;
+  // Web3 Treasury
+  SOLANA_TREASURY?: string;
+  SOLANA_RPC_URL?: string;
+  SOL_USD_RATE?: string;
+  USDC_USD_RATE?: string;
+  TREASURY_WALLET?: string;
   DB?: any;
 }
 
@@ -52,4 +58,10 @@ export const env = {
   get githubClientSecret(): string { return cfEnv.GITHUB_CLIENT_SECRET || ""; },
   get vaultDomain(): string { return cfEnv.VAULT_DOMAIN || ""; },
   get resendApiKey(): string { return cfEnv.RESEND_API_KEY || ""; },
+  // Web3 Treasury
+  get solanaTreasury(): string { return cfEnv.SOLANA_TREASURY || ""; },
+  get solanaRpcUrl(): string { return cfEnv.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com"; },
+  get solUsdRate(): string { return cfEnv.SOL_USD_RATE || ""; },
+  get usdcUsdRate(): string { return cfEnv.USDC_USD_RATE || "1.00"; },
+  get treasuryWallet(): string { return cfEnv.TREASURY_WALLET || ""; },
 };

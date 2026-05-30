@@ -1,6 +1,5 @@
 /**
  * Cloudflare Pages Functions Entry Point
- * Replaces Node.js boot.ts -- runs as a Cloudflare Worker with D1
  */
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -119,7 +118,6 @@ async function verifyStripeSignature(rawBody: string, signatureHeader: string, s
 
 const app = new Hono<{ Bindings: Env }>();
 
-// ─── Initialize environment & DB ───
 app.use(async (c, next) => {
   setCloudflareEnv(c.env as unknown as Record<string, unknown>);
   (globalThis as any).__cfExecCtx = c.executionCtx;
@@ -132,7 +130,6 @@ app.use(async (c, next) => {
   await next();
 });
 
-// ─── Security headers ───
 app.use(async (c, next) => {
   await next();
   const headers = getSecurityHeaders();
@@ -141,13 +138,9 @@ app.use(async (c, next) => {
   }
 });
 
-// ─── CORS ───
 app.use("/api/*", cors(getCorsConfig()));
-
-// ─── Trailing slash ───
 app.use(trimTrailingSlash());
 
-// ─── Rate limiting ───
 app.use("/api/*", async (c, next) => {
   if (c.req.path === "/api/stripe/webhook") {
     await next();
@@ -178,7 +171,6 @@ app.use("/api/*", async (c, next) => {
   await next();
 });
 
-// ─── Health ───
 app.get("/api/health", (c) =>
   c.json({
     ok: true,
@@ -213,7 +205,6 @@ app.get("/api/db/health", async (c) => {
   }
 });
 
-// ─── Stripe webhook ───
 app.post("/api/stripe/webhook", async (c) => {
   const db = getD1(c.env);
   if (!db) return c.json({ ok: false, error: "D1 binding missing" }, 500);
@@ -271,7 +262,6 @@ app.post("/api/stripe/webhook", async (c) => {
   return c.json({ ok: true, eventId: event.id, type: event.type });
 });
 
-// ─── Auth routes ───
 app.post("/api/auth/register", async (c) => {
   let input: AuthInput;
   try {
@@ -313,7 +303,6 @@ app.post("/api/auth/login", async (c) => {
   }
 });
 
-// ─── tRPC handler ───
 async function handleTRPC(c: any) {
   try {
     return await fetchRequestHandler({
@@ -336,7 +325,6 @@ app.all("/api/trpc/*", handleTRPC);
 
 app.all("/api/*", (c) => c.json({ error: "API route not found", path: c.req.path }, 404));
 
-// Cloudflare Pages onRequest
 export const onRequest = async (context: any) => {
   return app.fetch(context.request, context.env, context);
 };

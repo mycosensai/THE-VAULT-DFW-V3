@@ -195,7 +195,7 @@ function CalculatorSection() {
     { rate: 5, range: 'Under $1,000', label: 'Entry', active: numValue > 0 && numValue < 1000 },
     { rate: 7, range: '$1,000 - $7,500', label: 'Standard', active: numValue >= 1000 && numValue < 7500 },
     { rate: 10, range: '$7,500 - $10,000', label: 'Premium', active: numValue >= 7500 && numValue < 10000 },
-    { rate: 15, range: '$10,000+', label: 'Elite', active: numValue >= 10000 },
+    { rate: 5, range: '$10,000+', label: 'Elite', active: numValue >= 10000 },
   ]
 
   return (

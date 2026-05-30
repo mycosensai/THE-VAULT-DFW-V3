@@ -1,23 +1,32 @@
-[site]
-bucket = "./dist"
-entry-point = "thevault-ui"
+name = "thevaultprod"
+compatibility_date = "2026-05-22"
+compatibility_flags = ["nodejs_compat"]
 
-[env.production]
-route = "thevaultdfw.win/*"
-zone_id = "35eb69e06e3173eaae44080edcc89184"
-compatibility_date = "2025-04-01"
-usage_model = "standard"
+pages_build_output_dir = "dist"
+
+main = "functions/[[path]].ts"
+
+[observability]
+enabled = true
+
+[placement]
+mode = "smart"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "thevault-db"
 database_id = "375949ce-7c7d-4822-8235-461446769258"
 
-# Secret bindings (set via `wrangler secret put` or dashboard — NOT stored in wrangler.toml)
-# APP_SECRET
-# CLERK_API_URL
-# CLERK_JWKS_PUBLIC_KEY
-# CLERK_JWKS_URL
-# CLERK_PUBLISHABLE_KEY
-# STRIPE CHECKOUT
-# TREASURY SECRET KEYS
+[vars]
+ENVIRONMENT = "production"
+VAULT_DOMAIN = "thevaultdfw.win"
+API_RUNTIME = "cloudflare-pages"
+ENABLE_STRIPE_WEBHOOKS = "true"
+ENABLE_RATE_LIMITING = "true"
+ENABLE_SECURITY_HEADERS = "true"
+
+# ─── Web3 Treasury Configuration ───
+# Set your treasury wallet address (Solana public key)
+# SOLANA_TREASURY = "hd6xBJDfRokQheqb3jTzh7ahQZYVWy8kKKiF9XSN4Rn"
+# SOL_USD_RATE = "true"
+# USDC_USD_RATE = "1.00"
