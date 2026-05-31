@@ -3,9 +3,14 @@
  * Replaces Node.js boot.ts -- runs as a Cloudflare Worker with D1
  */
 import { Hono } from "hono";
+import type { Context } from "hono";
 import { cors } from "hono/cors";
 import { trimTrailingSlash } from "hono/trailing-slash";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
+
+declare global {
+  var __cfExecCtx: ExecutionContext | undefined
+}
 
 import { appRouter } from "../api/router";
 import { createContext } from "../api/context";
@@ -28,7 +33,7 @@ type StripeEvent = {
   id?: string;
   type?: string;
   data?: {
-    object?: Record<string, any>;
+    object?: Record<string, unknown>;
   };
 };
 
@@ -44,11 +49,11 @@ function getD1(env: Env): D1Database | undefined {
   return env.DB || env.thevault;
 }
 
-function getRequestContext(c: any) {
+function getRequestContext(c: Context<{ Bindings: Env }>) {
   return {
     req: c.req.raw,
     resHeaders: new Headers(),
-  };
+  } as const;
 }
 
 function getPublicAuthError(error: unknown): string {
@@ -122,7 +127,7 @@ const app = new Hono<{ Bindings: Env }>();
 // ─── Initialize environment & DB ───
 app.use(async (c, next) => {
   setCloudflareEnv(c.env as unknown as Record<string, unknown>);
-  (globalThis as any).__cfExecCtx = c.executionCtx;
+  globalThis.__cfExecCtx = c.executionCtx;
 
   const db = getD1(c.env);
   if (db) {
@@ -281,7 +286,7 @@ app.post("/api/auth/register", async (c) => {
   }
 
   try {
-    const caller = appRouter.createCaller(await createContext(getRequestContext(c) as any));
+    const caller = appRouter.createCaller(await createContext(getRequestContext(c)));
     const result = await caller.localAuth.register({
       name: String(input.name || ""),
       email: String(input.email || ""),
@@ -302,7 +307,7 @@ app.post("/api/auth/login", async (c) => {
   }
 
   try {
-    const caller = appRouter.createCaller(await createContext(getRequestContext(c) as any));
+    const caller = appRouter.createCaller(await createContext(getRequestContext(c)));
     const result = await caller.localAuth.login({
       email: String(input.email || ""),
       password: String(input.password || ""),
@@ -314,7 +319,7 @@ app.post("/api/auth/login", async (c) => {
 });
 
 // ─── tRPC handler ───
-async function handleTRPC(c: any) {
+async function handleTRPC(c: Context<{ Bindings: Env }>) {
   try {
     return await fetchRequestHandler({
       endpoint: "/api/trpc",
@@ -325,9 +330,10 @@ async function handleTRPC(c: any) {
         console.error(`[tRPC] ${opts.error.code} | ${opts.path} | ${opts.error.message}`);
       },
     });
-  } catch (err: any) {
-    console.error("[tRPC Handler Error]", err?.message || err);
-    return c.json({ error: "Internal server error" }, 500);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error("[tRPC Handler Error]", message)
+    return c.json({ error: "Internal server error" }, 500)
   }
 }
 
@@ -337,6 +343,6 @@ app.all("/api/trpc/*", handleTRPC);
 app.all("/api/*", (c) => c.json({ error: "API route not found", path: c.req.path }, 404));
 
 // Cloudflare Pages onRequest
-export const onRequest = async (context: any) => {
+export const onRequest = async (context: { request: Request; env: Env }) => {
   return app.fetch(context.request, context.env, context);
 };

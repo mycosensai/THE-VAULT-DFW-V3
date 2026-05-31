@@ -33,7 +33,11 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function Agents() {
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin] = useState(() => {
+    if (typeof window === 'undefined') return false
+    const role = localStorage.getItem('user_role')
+    return role === 'admin' || role === 'owner'
+  })
   const utils = trpc.useContext();
 
   const { data: stats } = trpc.agent.dashboardStats.useQuery();

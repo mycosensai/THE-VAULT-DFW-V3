@@ -22,21 +22,25 @@ clerkWebhook.post('/', async (c) => {
 
   const wh = new Webhook(CLERK_WEBHOOK_SIGNING_SECRET);
 
-  let evt: any;
+  let evt: unknown;
 
   try {
     evt = wh.verify(body, {
       'svix-id': svixId,
       'svix-timestamp': svixTimestamp,
       'svix-signature': svixSignature,
-    });
+    })
   } catch (err) {
-    console.error('Webhook verification failed:', err);
-    return c.json({ error: 'Invalid webhook signature' }, 400);
+    console.error('Webhook verification failed:', err)
+    return c.json({ error: 'Invalid webhook signature' }, 400)
   }
 
-  const eventType = evt.type;
-  const data = evt.data;
+  if (!evt || typeof evt !== 'object' || !('type' in evt) || !('data' in evt)) {
+    return c.json({ error: 'Invalid webhook payload' }, 400)
+  }
+
+  const eventType = String((evt as { type?: unknown }).type)
+  const data = (evt as { data?: Record<string, unknown> }).data
 
   console.log('Clerk webhook received:', eventType);
 

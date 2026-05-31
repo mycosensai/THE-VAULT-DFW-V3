@@ -27,7 +27,7 @@ export default function MobileAppPrompt() {
     const hasDismissedPrompt = sessionStorage.getItem('vault_mobile_prompt_dismissed')
 
     if (!hasDismissedPrompt) {
-      setIsVisible(true)
+      window.requestAnimationFrame(() => setIsVisible(true))
     }
   }, [])
 
