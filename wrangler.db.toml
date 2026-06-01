@@ -3,5 +3,5 @@ compatibility_date = "2026-04-29"
 
 [[d1_databases]]
 binding = "the_vault_dfw_3_db"
-database_name = "the-vault-dfw-3-db"
+database_name = "thevaultdb"
 database_id = "e6d36014-de05-40da-9f85-c5fd7027d93c"
