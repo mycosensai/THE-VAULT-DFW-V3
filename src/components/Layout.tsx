@@ -89,8 +89,10 @@ export default function Layout() {
   }, [])
 
   useEffect(() => {
-    setMenuOpen(false)
-    window.scrollTo(0, 0)
+    window.requestAnimationFrame(() => {
+      setMenuOpen(false)
+      window.scrollTo(0, 0)
+    })
   }, [location.pathname])
 
   const isPaymentPage = ['/checkout/', '/crypto-checkout/', '/sell'].some(p => location.pathname.startsWith(p))

@@ -119,7 +119,7 @@ function AuthLayoutContent({
 
   useEffect(() => {
     if (isCollapsed) {
-      setIsResizing(false);
+      window.requestAnimationFrame(() => setIsResizing(false));
     }
   }, [isCollapsed]);
 

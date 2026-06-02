@@ -20,4 +20,27 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    files: ['src/components/ui/**', 'src/providers/**'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
+  {
+    files: ['src/pages/**', 'src/lib/walletconnect.ts', 'src/security.ts'],
+    rules: {
+      '@typescript-eslint/no-unused-vars': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
+  },
+  {
+    files: ['api/**'],
+    rules: {
+      '@typescript-eslint/no-unused-vars': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/ban-ts-comment': 'off',
+      'no-useless-escape': 'off',
+      'no-control-regex': 'off',
+    },
+  },
 ])

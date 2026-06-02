@@ -94,7 +94,7 @@ export default function Certificate() {
             </div>
 
             {/* Item Details */}
-            <div className="bg-white/60 border border-[#C9A84C]/30 p-6 mb-8 text-left max-w-lg mx-auto">
+            <div className="bg-[#111111] border border-[#C9A84C]/30 p-6 mb-8 text-left max-w-lg mx-auto">
               <div className="grid grid-cols-1 gap-4 text-xs">
                 <div className="flex justify-between border-b border-[#C9A84C]/20 pb-2">
                   <span className="text-[#8A6E2F] font-cinzel tracking-[2px] uppercase text-[9px]">Item</span>

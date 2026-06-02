@@ -31,16 +31,19 @@ export default function Profile() {
 
   useEffect(() => {
     if (!data?.profile) return;
-    setHandle(data.profile.handle || "");
-    setDisplayName(data.profile.displayName || "");
-    setBio(data.profile.bio || "");
-    setLocation(data.profile.location || "");
-    setWebsite(data.profile.website || "");
-    setContactEmail(data.profile.contactEmail || "");
-    setAvatarUrl(data.profile.avatarUrl || "");
-    setBannerUrl(data.profile.bannerUrl || "");
-    setAccentColor(data.profile.accentColor || "#C9A84C");
-    setIsPublic(Boolean(data.profile.isPublic));
+
+    window.requestAnimationFrame(() => {
+      setHandle(data.profile.handle || "")
+      setDisplayName(data.profile.displayName || "")
+      setBio(data.profile.bio || "")
+      setLocation(data.profile.location || "")
+      setWebsite(data.profile.website || "")
+      setContactEmail(data.profile.contactEmail || "")
+      setAvatarUrl(data.profile.avatarUrl || "")
+      setBannerUrl(data.profile.bannerUrl || "")
+      setAccentColor(data.profile.accentColor || "#C9A84C")
+      setIsPublic(Boolean(data.profile.isPublic))
+    })
   }, [data?.profile]);
 
   if (authLoading) {

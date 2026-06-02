@@ -94,6 +94,48 @@
   .border-gold-dim {
     border-color: var(--gold-dim);
   }
+  .bg-white {
+    background-color: #080808 !important;
+  }
+  .bg-slate-50 {
+    background-color: #101010 !important;
+  }
+  .bg-slate-100 {
+    background-color: #111111 !important;
+  }
+  .bg-amber-50 {
+    background-color: rgba(201, 168, 76, 0.1) !important;
+  }
+  .bg-green-100 {
+    background-color: rgba(16, 32, 21, 0.16) !important;
+  }
+  .bg-red-100 {
+    background-color: rgba(48, 8, 8, 0.16) !important;
+  }
+  .bg-blue-50 {
+    background-color: rgba(7, 16, 28, 0.14) !important;
+  }
+  .border-slate-200 {
+    border-color: #2f2f2f !important;
+  }
+  .border-slate-100 {
+    border-color: #232323 !important;
+  }
+  .text-slate-900 {
+    color: #F5EED8 !important;
+  }
+  .text-slate-700 {
+    color: #C8B98A !important;
+  }
+  .text-slate-600 {
+    color: #A79F80 !important;
+  }
+  .text-slate-500 {
+    color: #8F8772 !important;
+  }
+  .text-black {
+    color: #080808 !important;
+  }
 }
 
 /* Scrollbar */
