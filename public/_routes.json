@@ -5,7 +5,13 @@
     "/",
     "/index.html",
     "/assets/*",
-    "/favicon.ico",
-    "/robots.txt"
+    "/favicon.svg",
+    "/pwa-192x192.png",
+    "/pwa-512x512.png",
+    "/manifest.webmanifest",
+    "/sw.js",
+    "/registerSW.js",
+    "/robots.txt",
+    "/sitemap.xml"
   ]
 }
