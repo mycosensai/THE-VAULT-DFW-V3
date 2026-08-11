@@ -51,13 +51,19 @@ async function migrate() {
   // Add certification columns to listings
   try {
     await db.execute(`ALTER TABLE listings ADD COLUMN is_certified BOOLEAN DEFAULT FALSE`);
-  } catch (e) { /* already exists */ }
+  } catch {
+    /* column already exists */
+  }
   try {
     await db.execute(`ALTER TABLE listings ADD COLUMN token_contract_address VARCHAR(255)`);
-  } catch (e) { /* already exists */ }
+  } catch {
+    /* column already exists */
+  }
   try {
     await db.execute(`ALTER TABLE listings ADD COLUMN certification_id BIGINT UNSIGNED`);
-  } catch (e) { /* already exists */ }
+  } catch {
+    /* column already exists */
+  }
 
   console.log("Blockchain tables created successfully!");
 }

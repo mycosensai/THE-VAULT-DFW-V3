@@ -28,24 +28,40 @@ function isIOS() {
 export default function MobileAppPrompt() {
   const [isVisible, setIsVisible] = useState(false)
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
-  const [isInstalled, setIsInstalled] = useState(false)
-  const [dismissed, setDismissed] = useState(false)
+
+  // Check if already installed as PWA — computed during render, not in state
+  const isInstalled = isStandalone()
+
+  // Check if dismissed — computed during render from storage
+  const dismissed =
+    sessionStorage.getItem('vault_pwa_dismissed') !== null ||
+    localStorage.getItem('vault_pwa_dismissed_perm') !== null
+
+  const handleDismiss = useCallback((permanent = false) => {
+    setIsVisible(false)
+    sessionStorage.setItem('vault_pwa_dismissed', 'true')
+    if (permanent) {
+      localStorage.setItem('vault_pwa_dismissed_perm', 'true')
+    }
+  }, [])
+
+  const handleInstall = useCallback(async () => {
+    if (installPrompt) {
+      installPrompt.prompt()
+      const { outcome } = await installPrompt.userChoice
+      if (outcome === 'accepted') {
+        setIsVisible(false)
+      }
+    } else if (isIOS()) {
+      handleDismiss(true)
+    }
+  }, [installPrompt, handleDismiss])
 
   useEffect(() => {
     // Already installed as PWA — don't show prompt
-    if (isStandalone()) {
-      setIsInstalled(true)
-      return
-    }
+    if (isInstalled) return
 
     if (!isMobileDevice()) return
-
-    const hasDismissed = sessionStorage.getItem('vault_pwa_dismissed')
-    const hasPermanentlyDismissed = localStorage.getItem('vault_pwa_dismissed_perm')
-    if (hasDismissed || hasPermanentlyDismissed) {
-      setDismissed(true)
-      return
-    }
 
     // Listen for the PWA install prompt
     const handleBeforeInstall = (e: BeforeInstallPromptEvent) => {
@@ -59,9 +75,8 @@ export default function MobileAppPrompt() {
 
     // For iOS, show a prompt explaining how to add to home screen
     if (isIOS()) {
-      // Check if already installed
       const timer = setTimeout(() => {
-        if (!isStandalone()) {
+        if (!isInstalled) {
           setIsVisible(true)
         }
       }, 3000)
@@ -73,9 +88,8 @@ export default function MobileAppPrompt() {
 
     // For Android without install prompt support, show after a delay
     const timer = setTimeout(() => {
-      if (!isStandalone() && !installPrompt) {
+      if (!isInstalled && !installPrompt) {
         // Only show generic prompt if we haven't gotten the install event
-        // (some browsers auto-trigger it, some don't)
       }
     }, 5000)
 
@@ -83,31 +97,7 @@ export default function MobileAppPrompt() {
       clearTimeout(timer)
       window.removeEventListener('beforeinstallprompt', handleBeforeInstall as EventListener)
     }
-  }, [installPrompt])
-
-  const handleInstall = useCallback(async () => {
-    if (installPrompt) {
-      installPrompt.prompt()
-      const { outcome } = await installPrompt.userChoice
-      if (outcome === 'accepted') {
-        setIsInstalled(true)
-        setIsVisible(false)
-      }
-    } else if (isIOS()) {
-      // On iOS, guide the user to use Share > Add to Home Screen
-      // The prompt already shows these instructions
-      handleDismiss(true)
-    }
-  }, [installPrompt])
-
-  const handleDismiss = useCallback((permanent = false) => {
-    setIsVisible(false)
-    setDismissed(true)
-    sessionStorage.setItem('vault_pwa_dismissed', 'true')
-    if (permanent) {
-      localStorage.setItem('vault_pwa_dismissed_perm', 'true')
-    }
-  }, [])
+  }, [isInstalled, installPrompt])
 
   // Don't show anything if installed, dismissed, or not mobile
   if (!isVisible || isInstalled || dismissed) return null
@@ -183,7 +173,6 @@ export default function MobileAppPrompt() {
           >
             Install App
           </button>
-
           <button
             type="button"
             onClick={() => handleDismiss(false)}

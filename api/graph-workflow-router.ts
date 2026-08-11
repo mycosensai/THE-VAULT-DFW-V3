@@ -106,19 +106,21 @@ export const graphWorkflowRouter = createRouter({
 
         case "cold_email_batch":
           // Build iteration workflow for cold email batch sends
-          const prospects = input.prospectIds || [];
-          graph = {
-            id: genId("wf"),
-            name: "Cold Email Batch",
-            nodes: new Map([
-              ["start", { id: "start", type: "start", config: {}, inputs: [], outputs: ["iteration"], parallel: false }],
-              ["iteration", { id: "iteration", type: "iteration", config: { items: prospects }, inputs: ["start"], outputs: ["response"], parallel: true, maxWorkers: 5 }],
-              ["response", { id: "response", type: "response", config: { template: "Batch complete" }, inputs: ["iteration"], outputs: [], parallel: false }],
-            ]),
-            startNode: "start",
-            endNodes: ["response"],
-          };
-          context = { prospectCount: prospects.length };
+          {
+            const prospects = input.prospectIds || [];
+            graph = {
+              id: genId("wf"),
+              name: "Cold Email Batch",
+              nodes: new Map([
+                ["start", { id: "start", type: "start", config: {}, inputs: [], outputs: ["iteration"], parallel: false }],
+                ["iteration", { id: "iteration", type: "iteration", config: { items: prospects }, inputs: ["start"], outputs: ["response"], parallel: true, maxWorkers: 5 }],
+                ["response", { id: "response", type: "response", config: { template: "Batch complete" }, inputs: ["iteration"], outputs: [], parallel: false }],
+              ]),
+              startNode: "start",
+              endNodes: ["response"],
+            };
+            context = { prospectCount: prospects.length };
+          }
           break;
 
         case "research_scan":
